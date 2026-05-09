@@ -4,24 +4,9 @@ let escuchando = false;
 let transcripcionAcumulada = "";
 let puntaje = 0;
 
-// NUEVAS VARIABLES PARA EL SISTEMA DE REPASO
+// Variables para el sistema de repaso de palabras fallidas
 let listaErrores = [];
 let modoRepaso = false;
-
-// Configuración de sonidos de retroalimentación
-const sonidoExito = new Audio('./sounds/exito.mp3');
-const sonidoError = new Audio('./sounds/error.mp3');
-sonidoExito.load();
-sonidoError.load();
-
-// MEZCLA ALEATORIA INICIAL DEL BANCO DE PALABRAS
-bancoDePalabras.sort(() => Math.random() - 0.5);
-
-// Configuración del motor de reconocimiento de voz
-const reconocimiento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-reconocimiento.lang = 'en-US';
-reconocimiento.continuous = true;
-reconocimiento.interimResults = true;
 
 // Referencias a los elementos de la interfaz gráfica
 const btn = document.getElementById('accionBtn');
@@ -30,12 +15,80 @@ const txtEstado = document.getElementById('estado');
 const txtResultado = document.getElementById('resultado');
 const txtPuntaje = document.getElementById('puntaje');
 
+// CAMBIO: NUEVAS REFERENCIAS PARA GESTIONAR EL MENU Y EL JUEGO
+const menuUI = document.getElementById('menu-inicial');
+const juegoUI = document.getElementById('canvas-app');
+const scoreUI = document.getElementById('score-container');
+const listaGradosUI = document.getElementById('lista-grados');
+
+// Configuración de sonidos de retroalimentación
+const sonidoExito = new Audio('./sounds/exito.mp3');
+const sonidoError = new Audio('./sounds/error.mp3');
+sonidoExito.load();
+sonidoError.load();
+
+// Configuración del motor de reconocimiento de voz
+const reconocimiento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+reconocimiento.lang = 'en-US';
+reconocimiento.continuous = true;
+reconocimiento.interimResults = true;
+
+// CAMBIO: FUNCIÓN PARA GENERAR EL MENÚ DE GRADOS Y TESTS DINÁMICAMENTE
+function generarMenu() {
+    listaGradosUI.innerHTML = ''; // Limpia el contenedor
+
+    for (let grado in bibliotecaPalabras) {
+        // Crea un contenedor para cada grado
+        const divGrado = document.createElement('div');
+        divGrado.className = 'contenedor-grado';
+        
+        // BOTÓN PARA CARGAR TODAS LAS PALABRAS DEL GRADO
+        const btnTodoGrado = document.createElement('button');
+        btnTodoGrado.className = 'btn-grado-completo';
+        btnTodoGrado.innerText = `Practice All ${grado}`;
+        btnTodoGrado.onclick = () => cargarNivel(grado, null);
+        divGrado.appendChild(btnTodoGrado);
+
+        // BOTONES PARA CADA TEST INDIVIDUAL
+        for (let test in bibliotecaPalabras[grado]) {
+            const btnTest = document.createElement('button');
+            btnTest.className = 'btn-test';
+            btnTest.innerText = test;
+            btnTest.onclick = () => cargarNivel(grado, test);
+            divGrado.appendChild(btnTest);
+        }
+
+        listaGradosUI.appendChild(divGrado);
+    }
+}
+
+// CAMBIO: LOGICA DE FILTRADO Y CARGA DE PALABRAS SEGÚN SELECCIÓN
+function cargarNivel(grado, test) {
+    // Vaciamos el banco actual (usando length=0 para respetar si es const)
+    bancoDePalabras.length = 0; 
+
+    if (test) {
+        // SELECCIÓN DE TEST ESPECÍFICO
+        bancoDePalabras.push(...bibliotecaPalabras[grado][test]);
+    } else {
+        // SELECCIÓN DE GRADO COMPLETO (COMBINA TODOS LOS TESTS)
+        for (let t in bibliotecaPalabras[grado]) {
+            bancoDePalabras.push(...bibliotecaPalabras[grado][t]);
+        }
+    }
+
+    // ALEATORIZACIÓN DE LA LISTA RESULTANTE
+    bancoDePalabras.sort(() => Math.random() - 0.5);
+
+    // CAMBIO DE VISTA: OCULTAR MENÚ Y MOSTRAR JUEGO
+    menuUI.style.display = 'none';
+    juegoUI.style.display = 'block';
+    scoreUI.style.display = 'block';
+}
+
 // Gestiona la reproducción de voz de la palabra actual
 function pronunciarPalabra() {
-    if (indiceActual >= bancoDePalabras.length) {
-        // CAMBIO: LA LOGICA DE FINALIZACION SE MOVIÓ A AVANZARSIGUIENTE
-        return;
-    }
+    if (indiceActual >= bancoDePalabras.length) return;
 
     const palabraObjetivo = bancoDePalabras[indiceActual].palabra;
     const mensaje = new SpeechSynthesisUtterance(palabraObjetivo);
@@ -86,24 +139,22 @@ reconocimiento.onresult = (event) => {
             transcripcionAcumulada += event.results[i][0].transcript + " ";
         }
     }
-    // NOTA: SE MANTIENE EL SILENCIO VISUAL DURANTE LA GRABACION
 };
 
-// Lógica de validación con visualización de transcripción post-grabación
+// Lógica de validación con visualización de transcripción filtrada
 function evaluarDeletreo(transcript) {
     const objetoActual = bancoDePalabras[indiceActual];
     const palabraCorrecta = objetoActual.palabra.toLowerCase();
     
     let piezas = transcript.toLowerCase().split(/\s+/);
 
-    // Lógica "Pelar la fruta"
+    // Lógica "Pelar la fruta" (elimina repeticiones de la palabra en extremos)
     if (piezas.length > 1 && piezas[0] === palabraCorrecta) piezas.shift();
     if (piezas.length > 0 && piezas[piezas.length - 1] === palabraCorrecta) piezas.pop();
 
     const deletreoFinal = piezas.join('');
     
-    // CAMBIO: AHORA MOSTRAMOS SOLO LAS PIEZAS RESULTANTES (LA FRUTA PELADA)
-    // Usamos join(' ') para separarlo por espacios y lo pasamos a mayúsculas
+    // MUESTRA SOLO LAS LETRAS RESULTANTES (FRUTA PELADA)
     const deletreoVisible = piezas.join(' ').toUpperCase();
     txtEstado.innerText = `Escuché: "${deletreoVisible}"`;
 
@@ -117,7 +168,6 @@ function evaluarDeletreo(transcript) {
         
         avanzarSiguiente();
     } else {
-        // SI FALLA Y NO ESTAMOS EN REPASO, GUARDAMOS LA PALABRA PARA DESPUES
         if (!modoRepaso) {
             listaErrores.push(objetoActual);
         }
@@ -132,8 +182,6 @@ function evaluarDeletreo(transcript) {
         const deletreoAyuda = new SpeechSynthesisUtterance();
         deletreoAyuda.text = palabraCorrecta.split('').join(', '); 
         deletreoAyuda.lang = 'en-US';
-        
-        // CAMBIO: REDUCIMOS LA VELOCIDAD (Antes 0.6, ahora 0.4 o 0.3)
         deletreoAyuda.rate = 0.4; 
         
         window.speechSynthesis.speak(deletreoAyuda);
@@ -147,7 +195,7 @@ function evaluarDeletreo(transcript) {
     }
 }
 
-// Gestiona el paso entre palabras y activa la fase de repaso si existen errores
+// Gestiona el paso entre palabras y activa la fase de repaso de errores
 function avanzarSiguiente() {
     indiceActual++;
 
@@ -155,11 +203,9 @@ function avanzarSiguiente() {
     if (indiceActual < bancoDePalabras.length) {
         btn.innerText = modoRepaso ? "SIGUIENTE (REPASO)" : "SIGUIENTE PALABRA";
     } else {
-        // SI TERMINAMOS LA LISTA INICIAL Y HAY ERRORES, INICIAMOS REPASO
         if (!modoRepaso && listaErrores.length > 0) {
             activarModoRepaso();
         } else {
-            // SI YA ESTABAMOS EN REPASO O NO HUBO ERRORES, TERMINAMOS
             btn.innerText = "🎉 JUEGO TERMINADO";
             btn.disabled = true;
             txtEstado.innerText = `Puntaje Final: ${puntaje}`;
@@ -168,18 +214,12 @@ function avanzarSiguiente() {
     }
 }
 
-// NUEVA FUNCION CORREGIDA: PREPARA LA SEGUNDA VUELTA SIN ROMPER LA VARIABLE CONST
+// Configura el banco de palabras para repetir solo las que se fallaron
 function activarModoRepaso() {
     modoRepaso = true;
-    
-    // CORRECCION: En lugar de reasignar (que causa error con 'const'),
-    // vaciamos el arreglo actual y empujamos las palabras que fallaron.
     bancoDePalabras.length = 0; 
     bancoDePalabras.push(...listaErrores);
-    
-    // Volvemos a desordenar para que el repaso también sea aleatorio
     bancoDePalabras.sort(() => Math.random() - 0.5);
-    
     indiceActual = 0;
     
     txtEstado.innerText = "¡VAMOS A REPASAR LAS QUE FALLARON!";
@@ -206,8 +246,9 @@ btn.addEventListener('click', () => {
     }
 });
 
-// Sincroniza la visualización de la versión al cargar la página
+// CAMBIO: INICIALIZACIÓN DE LA VERSIÓN Y GENERACIÓN DEL MENÚ AL CARGAR
 window.addEventListener('load', () => {
+    generarMenu(); 
     const display = document.getElementById('version-display');
     if (display && typeof APP_VERSION !== 'undefined') {
         display.innerText = `Versión: ${APP_VERSION}`;

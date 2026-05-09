@@ -2,14 +2,19 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <!-- El manifest va siempre en el head -->
     <link rel="manifest" href="manifest.json">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Spelling Bee Trainer</title>
     
     <style>
         body { font-family: sans-serif; text-align: center; background: #f0f0f0; margin: 0; padding: 20px; }
-        #canvas-app { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+        #canvas-app, #menu-inicial { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+        
+        /* CAMBIO: ESTILOS PARA LOS BOTONES DEL MENU */
+        .contenedor-grado { margin-bottom: 30px; padding: 15px; border: 1px solid #eee; border-radius: 10px; }
+        .btn-test { background: #6c757d; color: white; padding: 10px 20px; margin: 5px; border-radius: 20px; border: none; cursor: pointer; }
+        .btn-grado-completo { background: #28a745; color: white; padding: 12px; width: 100%; border-radius: 10px; border: none; margin-bottom: 10px; cursor: pointer; font-weight: bold; }
+        
         img { max-width: 80%; height: auto; border-radius: 10px; margin-bottom: 20px; display: none; }
         .btn-principal { 
             width: 100%; max-width: 400px; padding: 25px; font-size: 24px; 
@@ -19,69 +24,49 @@
         .btn-grabar { background: #dc3545; }
         #resultado { margin-top: 20px; font-size: 32px; font-weight: bold; }
         #estado { margin-bottom: 15px; color: #666; }
+        #score-container { font-size: 24px; font-weight: bold; margin-bottom: 10px; color: #007bff; display: none; }
     </style>
 </head>
 <body>
 
-    <!-- Etiqueta de versión flotante -->
-    <div id="version-display" style="
-        position: fixed; 
-        bottom: 10px; 
-        right: 10px; 
-        font-size: 12px; 
-        color: #999; 
-        background: rgba(255,255,255,0.7); 
-        padding: 2px 8px; 
-        border-radius: 10px; 
-        pointer-events: none;
-        z-index: 1000;
-    ">v0.0.0</div>
+    <div id="version-display" style="position: fixed; bottom: 10px; right: 10px; font-size: 12px; color: #999; background: rgba(255,255,255,0.7); padding: 2px 8px; border-radius: 10px; pointer-events: none; z-index: 1000;">v0.0.0</div>
 
-    <!-- AGREGAR ESTO DENTRO DEL BODY, ARRIBA DEL CANVAS-APP -->
-    <div id="score-container" style="font-size: 24px; font-weight: bold; margin-bottom: 10px; color: #007bff;">
-        Puntaje: <span id="puntaje">0</span>
+    <!-- CAMBIO: NUEVO CONTENEDOR DE MENU INICIAL -->
+    <div id="menu-inicial">
+        <h1>Spelling Bee</h1>
+        <p>Choose a level to practice:</p>
+        <div id="lista-grados"></div>
     </div>
 
-    <div id="canvas-app">
+    <!-- CAMBIO: EL JUEGO AHORA ESTA OCULTO POR DEFECTO -->
+    <div id="score-container">
+        Score: <span id="puntaje">0</span>
+    </div>
+
+    <div id="canvas-app" style="display: none;">
         <img id="pistaImagen" src="" alt="Pista visual">
-        <div id="estado">Presiona el botón para iniciar</div>
-        <button id="accionBtn" class="btn-principal">REPRODUCIR PALABRA</button>
+        <div id="estado">Press the button to start</div>
+        <button id="accionBtn" class="btn-principal">PLAY WORD</button>
         <div id="resultado"></div>
+        <br>
+        <button onclick="location.reload()" style="margin-top: 20px; background: none; border: none; color: #007bff; text-decoration: underline; cursor: pointer;">Volver al menú</button>
     </div>
 
-    <!-- Cargar primero la versión -->
     <script src="version.js"></script>
-
-    <!-- Cargamos los datos -->
     <script src="datos.js"></script>
-
-    <!-- Luego la lógica del juego -->
     <script src="app.js"></script>
 
-    <!-- Registramos el Service Worker para PWA -->
     <script>
-        // Detectamos si estamos en un servidor local
-        const isLocalhost = Boolean(
-            window.location.hostname === 'localhost' ||
-            window.location.hostname === '127.0.0.1' ||
-            window.location.hostname.includes('192.168.') // Para cuando lo veas desde el wifi
-        );
-
+        const isLocalhost = Boolean(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168.'));
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 if (isLocalhost) {
-                    console.log('Modo Desarrollo: Desactivando Service Worker para ver cambios instantáneos.');
-                    // Opcional: Desregistrar cualquier SW existente para que no moleste
                     navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
                 } else {
-                    // Modo Producción (GitHub): Activar PWA
-                    navigator.serviceWorker.register('sw.js')
-                        .then(reg => console.log('PWA lista para modo offline', reg))
-                        .catch(err => console.error('Error en PWA', err));
+                    navigator.serviceWorker.register('sw.js').catch(err => console.error('Error en PWA', err));
                 }
             });
         }
     </script>
-
 </body>
 </html>
