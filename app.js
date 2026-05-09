@@ -8,8 +8,8 @@ let puntaje = 0;
 let listaErrores = [];
 let modoRepaso = false;
 
-// Variable nueva para mantener la memoria entre reinicios del motor
-let baulLetras = "";
+// CAMBIO: NUEVA VARIABLE PARA ALMACENAR PIEZAS FINALES (Evita borrados en tablets)
+let listaLetrasConfirmadas = [];
 
 // Referencias a los elementos de la interfaz gráfica
 const btn = document.getElementById('accionBtn');
@@ -17,8 +17,9 @@ const img = document.getElementById('pistaImagen');
 const txtEstado = document.getElementById('estado');
 const txtResultado = document.getElementById('resultado');
 const txtPuntaje = document.getElementById('puntaje');
+const debugLog = document.getElementById('debug-log'); // Para el panel de depuración
 
-// CAMBIO: NUEVAS REFERENCIAS PARA GESTIONAR EL MENU Y EL JUEGO
+// Referencias para gestionar el menú y la visibilidad del juego
 const menuUI = document.getElementById('menu-inicial');
 const juegoUI = document.getElementById('canvas-app');
 const scoreUI = document.getElementById('score-container');
@@ -34,10 +35,17 @@ sonidoError.load();
 const reconocimiento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 reconocimiento.lang = 'en-US';
 reconocimiento.continuous = true;
-// CAMBIO: Desactivamos resultados intermedios para mayor estabilidad en tablets
-reconocimiento.interimResults = false;
+reconocimiento.interimResults = false; // CAMBIO: Solo procesamos resultados finales para evitar ruidos
 
-// CAMBIO: FUNCIÓN PARA GENERAR EL MENÚ CON NUEVA ESTRUCTURA CSS
+// Función de utilidad para depuración en tablets
+function logDebug(msg) {
+    if (!debugLog) return;
+    const time = new Date().toLocaleTimeString().split(' ')[0];
+    debugLog.innerHTML += `[${time}] ${msg}<br>`;
+    debugLog.scrollTop = debugLog.scrollHeight;
+}
+
+// Genera el menú de selección de niveles dinámicamente
 function generarMenu() {
     listaGradosUI.innerHTML = '';
 
@@ -67,44 +75,36 @@ function generarMenu() {
     }
 }
 
-// Filtra y prepara el banco de palabras según la elección del usuario
+// Prepara el banco de palabras según el nivel seleccionado
 function cargarNivel(grado, test) {
-    // Vaciamos el banco actual (usando length=0 para respetar si es const)
     bancoDePalabras.length = 0; 
 
     if (test) {
-        // SELECCIÓN DE TEST ESPECÍFICO
         bancoDePalabras.push(...bibliotecaPalabras[grado][test]);
     } else {
-        // SELECCIÓN DE GRADO COMPLETO (COMBINA TODOS LOS TESTS)
         for (let t in bibliotecaPalabras[grado]) {
             bancoDePalabras.push(...bibliotecaPalabras[grado][t]);
         }
     }
 
-    // ALEATORIZACIÓN DE LA LISTA RESULTANTE
     bancoDePalabras.sort(() => Math.random() - 0.5);
 
-    // CAMBIO DE VISTA: OCULTAR MENÚ Y MOSTRAR JUEGO
     menuUI.style.display = 'none';
     juegoUI.style.display = 'block';
     scoreUI.style.display = 'block';
 }
 
-// Gestiona la síntesis de voz y la carga de imágenes
+// Gestiona la síntesis de voz y la limpieza de etiquetas en las palabras
 function pronunciarPalabra() {
     if (indiceActual >= bancoDePalabras.length) return;
 
     let palabraObjetivo = bancoDePalabras[indiceActual].palabra;
-
-    // CAMBIO: LIMPIEZA DE PARÉNTESIS PARA LA VOZ (Ej. "mouse (computer)" -> "mouse")
     const palabraParaHablar = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '').trim();
 
     const mensaje = new SpeechSynthesisUtterance(palabraParaHablar);
     mensaje.lang = 'en-US';
     mensaje.rate = 0.8; 
     
-    // CAMBIO: FORMATEO DE NOMBRE DE ARCHIVO PARA IMAGEN (Mantiene compatibilidad con el script de descarga)
     const nombreImagen = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '_').replace(/\s+/g, '_').replace(/__+/g, '_').trim('_');
     img.src = `./img/${nombreImagen}.jpg`;
     
@@ -115,96 +115,91 @@ function pronunciarPalabra() {
     mensaje.onend = () => iniciarGrabacion();
 }
 
-// Activa el micrófono y cambia el estado visual del botón
-// 1. MODIFICACIÓN: Iniciar la grabación limpiando la "bóveda"
+// CAMBIO: INICIO DE GRABACIÓN CON LIMPIEZA DE ACUMULADOR POR PIEZAS
 function iniciarGrabacion() {
     escuchando = true;
     transcripcionAcumulada = ""; 
-    baulLetras = ""; // Limpiamos la memoria persistente
+    listaLetrasConfirmadas = []; // Limpiamos el baúl de letras para la nueva palabra
     btn.innerText = "🛑 TOCAR AL TERMINAR";
     btn.classList.add('btn-grabar');
     
+    logDebug("Iniciando Micrófono...");
     try {
         reconocimiento.start();
     } catch (e) {
-        console.log("Reconocimiento ya activo");
+        logDebug("Reconocimiento ya activo");
     }
 }
 
-// Detiene la escucha y dispara la evaluación del texto capturado
-// 4. MODIFICACIÓN: Asegurar que el stop sea definitivo al presionar el botón
+// Finaliza la escucha y procesa la cadena resultante
 function finalizarYEvaluar() {
-    escuchando = false; // Primero marcamos falso para que onend NO lo reinicie
+    escuchando = false; // Marcamos como falso para evitar el reinicio en onend
     reconocimiento.stop();
     btn.classList.remove('btn-grabar');
     btn.innerText = "PROCESANDO...";
 
+    // Consolidamos todas las piezas finales recibidas
+    transcripcionAcumulada = listaLetrasConfirmadas.join(" ");
+    logDebug("Sesión terminada. Evaluando: " + transcripcionAcumulada);
+
     setTimeout(() => {
         evaluarDeletreo(transcripcionAcumulada.trim());
-    }, 500);
+    }, 600);
 }
 
-// Procesa el audio capturado reconstruyendo el texto desde cero para evitar duplicados
-// 2. MODIFICACIÓN: El corazón del arreglo para Tablets
+// CAMBIO: PROCESAMIENTO DE RESULTADOS POR "PIEZAS FINALES" (Resiliente a pausas)
 reconocimiento.onresult = (event) => {
-    let bloqueSesionActual = "";
-    
-    // Recorremos todos los resultados actuales del motor
-    for (let i = 0; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-            bloqueSesionActual += event.results[i][0].transcript + " ";
-        }
+    // Pescamos solo el último resultado procesado por el motor
+    const resultIndex = event.resultIndex;
+    const transcript = event.results[resultIndex][0].transcript.trim();
+    const esFinal = event.results[resultIndex].isFinal;
+
+    if (esFinal) {
+        logDebug(`Recibido: "${transcript}"`);
+        // Guardamos este bloque en nuestra lista permanente
+        listaLetrasConfirmadas.push(transcript);
+        // Actualizamos la visualización para el usuario
+        txtEstado.innerText = `Escuchando: ${listaLetrasConfirmadas.join(" ").toUpperCase()}`;
     }
-    
-    // La transcripción total es lo que guardamos en reinicios previos + lo de ahora
-    // Esto evita el "A A B A" porque reconstruye, no solo suma.
-    transcripcionAcumulada = baulLetras + bloqueSesionActual;
 };
 
-// 3. NUEVA FUNCIÓN: "Keep-Alive" para que no se corte por el silencio
+// CAMBIO: REINICIO AUTOMÁTICO (KEEP-ALIVE) PARA PAUSAS LARGAS
 reconocimiento.onend = () => {
-    // Si el motor se apaga solo (por silencio) pero el botón de "STOP" no se ha pulsado...
     if (escuchando) {
-        // Guardamos lo que llevamos en el "baúl" y reiniciamos el motor
-        baulLetras = transcripcionAcumulada;
+        logDebug("Micro se cerró por silencio. Reiniciando...");
         try {
             reconocimiento.start(); 
         } catch(e) {
-            // Ya está intentando iniciar
+            logDebug("Error en reinicio: " + e.message);
         }
     }
 };
 
-// Lógica de validación con visualización de transcripción filtrada
+// Lógica de validación con filtrado de caracteres individuales
 function evaluarDeletreo(transcript) {
     const objetoActual = bancoDePalabras[indiceActual];
-    
-    // CAMBIO: LIMPIEZA DE PARÉNTESIS EN LA PALABRA OBJETIVO PARA LA COMPARACIÓN
     const palabraCorrecta = objetoActual.palabra.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
     
     let piezas = transcript.toLowerCase().split(/\s+/);
 
-    // CAMBIO: FILTRADO DE LETRAS ÚNICAS (Ignora palabras completas mal entendidas por el motor)
+    // Filtramos solo elementos de 1 letra (ignora palabras completas de relleno)
     let letrasDeletreadas = piezas.filter(pieza => pieza.length === 1);
     const deletreoFinal = letrasDeletreadas.join('');
-    
     const deletreoVisible = letrasDeletreadas.join(' ').toUpperCase();
     
     if (deletreoFinal === "") {
-         txtEstado.innerText = `No escuché el deletreo, solo palabras completas.`;
+         txtEstado.innerText = `No escuché el deletreo, intenta separar más las letras.`;
+         logDebug("Evaluación fallida: No se detectaron letras sueltas.");
     } else {
          txtEstado.innerText = `Escuché: "${deletreoVisible}"`;
     }
 
-    // Validación del resultado y asignación de puntaje
     if (deletreoFinal === palabraCorrecta) {
         txtResultado.innerText = "✅ ¡EXCELENTE!";
         txtResultado.style.color = "green";
         sonidoExito.play();
-        
         puntaje += 10;
         txtPuntaje.innerText = puntaje;
-        
         avanzarSiguiente();
     } else {
         if (!modoRepaso) {
@@ -234,7 +229,7 @@ function evaluarDeletreo(transcript) {
     }
 }
 
-// Controla el flujo hacia la siguiente palabra o fase de repaso
+// Avanza a la siguiente palabra o inicia el modo de repaso
 function avanzarSiguiente() {
     indiceActual++;
 
@@ -252,7 +247,7 @@ function avanzarSiguiente() {
     }
 }
 
-// Reconfigura el banco de datos para trabajar solo con las palabras fallidas
+// Filtra el banco de palabras para repetir solo los errores previos
 function activarModoRepaso() {
     modoRepaso = true;
     bancoDePalabras.length = 0; 
@@ -266,15 +261,17 @@ function activarModoRepaso() {
     txtResultado.style.color = "#007bff";
 }
 
-// Manejo de interrupciones o fallos en el reconocimiento de voz
+// Gestión de errores técnicos del micrófono
 reconocimiento.onerror = (event) => {
+    logDebug("Error capturado: " + event.error);
+    if (event.error === 'no-speech') return; // Ignoramos si no hay voz, onend se encarga
     btn.classList.remove('btn-grabar');
     btn.innerText = "REINTENTAR";
     escuchando = false;
     txtEstado.innerText = "Error de micrófono: " + event.error;
 };
 
-// Controlador de eventos para el botón principal de interacción
+// Controlador de eventos para el botón de acción principal
 btn.addEventListener('click', () => {
     if (!escuchando) {
         txtResultado.innerText = "";
@@ -284,7 +281,7 @@ btn.addEventListener('click', () => {
     }
 });
 
-// CAMBIO: INICIALIZACIÓN DE LA VERSIÓN Y GENERACIÓN DEL MENÚ AL CARGAR
+// Inicialización de la interfaz al cargar la ventana
 window.addEventListener('load', () => {
     generarMenu(); 
     const display = document.getElementById('version-display');
