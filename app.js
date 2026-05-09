@@ -1,4 +1,3 @@
-//app.js
 // Variables de control
 let indiceActual = 0;
 
@@ -104,4 +103,11 @@ btn.addEventListener('click', () => {
     pronunciarPalabra();
 });
 
-document.getElementById('version-display').innerText = `Versión: ${APP_VERSION}`;
+window.addEventListener('load', () => {
+    const display = document.getElementById('version-display');
+    if (display && typeof APP_VERSION !== 'undefined') {
+        display.innerText = `Versión: ${APP_VERSION}`;
+    } else {
+        console.error("No se pudo cargar la versión. Verifica version.js");
+    }
+});
