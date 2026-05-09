@@ -1,3 +1,16 @@
+// 1. DICCIONARIO FONÉTICO: Corrige palabras que la tablet confunde con letras
+const mapaFonetico = {
+    "see": "c", "sea": "c", "si": "c", "se": "c",
+    "te": "t", "tea": "t", "tee": "t",
+    "eye": "i", "i": "i",
+    "hay": "a", "ay": "a", "a": "a",
+    "be": "b", "bee": "b",
+    "pea": "p", "pee": "p",
+    "you": "u", "are": "r", "why": "y", "oh": "o",
+    "kay": "k", "el": "l", "and": "n", "em": "m",
+    "de": "d", "day": "d", "gee": "g", "jay": "j"
+};
+
 // Variables de control de estado y navegación
 let indiceActual = 0;
 let escuchando = false; 
@@ -8,8 +21,9 @@ let puntaje = 0;
 let listaErrores = [];
 let modoRepaso = false;
 
-// CAMBIO: NUEVA VARIABLE PARA ALMACENAR PIEZAS FINALES (Evita borrados en tablets)
+// CAMBIO: VARIABLES PARA ALMACENAR PIEZAS Y RESCATAR INTERIMS
 let listaLetrasConfirmadas = [];
+let interimActual = ""; 
 
 // Referencias a los elementos de la interfaz gráfica
 const btn = document.getElementById('accionBtn');
@@ -17,7 +31,7 @@ const img = document.getElementById('pistaImagen');
 const txtEstado = document.getElementById('estado');
 const txtResultado = document.getElementById('resultado');
 const txtPuntaje = document.getElementById('puntaje');
-const debugLog = document.getElementById('debug-log'); // Para el panel de depuración
+const debugLog = document.getElementById('debug-log'); 
 
 // Referencias para gestionar el menú y la visibilidad del juego
 const menuUI = document.getElementById('menu-inicial');
@@ -35,7 +49,9 @@ sonidoError.load();
 const reconocimiento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 reconocimiento.lang = 'en-US';
 reconocimiento.continuous = true;
-reconocimiento.interimResults = false; // CAMBIO: Solo procesamos resultados finales para evitar ruidos
+
+// CAMBIO: Activamos interimResults para capturar letras antes de que el silencio corte el micro
+reconocimiento.interimResults = true; 
 
 // Función de utilidad para depuración en tablets
 function logDebug(msg) {
@@ -94,7 +110,7 @@ function cargarNivel(grado, test) {
     scoreUI.style.display = 'block';
 }
 
-// Gestiona la síntesis de voz y la limpieza de etiquetas en las palabras
+// Gestiona la síntesis de voz y la carga de imágenes
 function pronunciarPalabra() {
     if (indiceActual >= bancoDePalabras.length) return;
 
@@ -115,11 +131,12 @@ function pronunciarPalabra() {
     mensaje.onend = () => iniciarGrabacion();
 }
 
-// CAMBIO: INICIO DE GRABACIÓN CON LIMPIEZA DE ACUMULADOR POR PIEZAS
+// CAMBIO: INICIO DE GRABACIÓN CON LIMPIEZA DE BAÚL E INTERIMS
 function iniciarGrabacion() {
     escuchando = true;
     transcripcionAcumulada = ""; 
-    listaLetrasConfirmadas = []; // Limpiamos el baúl de letras para la nueva palabra
+    listaLetrasConfirmadas = []; 
+    interimActual = ""; // Limpiamos cualquier letra huérfana
     btn.innerText = "🛑 TOCAR AL TERMINAR";
     btn.classList.add('btn-grabar');
     
@@ -131,14 +148,20 @@ function iniciarGrabacion() {
     }
 }
 
-// Finaliza la escucha y procesa la cadena resultante
+// Finaliza la escucha y procesa la cadena resultante rescatando el último interim
 function finalizarYEvaluar() {
-    escuchando = false; // Marcamos como falso para evitar el reinicio en onend
+    escuchando = false; 
     reconocimiento.stop();
     btn.classList.remove('btn-grabar');
     btn.innerText = "PROCESANDO...";
 
-    // Consolidamos todas las piezas finales recibidas
+    // CAMBIO: Si quedó una letra procesándose al presionar Stop, la rescatamos
+    if (interimActual) {
+        logDebug(`Rescate final: "${interimActual}"`);
+        listaLetrasConfirmadas.push(interimActual);
+        interimActual = "";
+    }
+
     transcripcionAcumulada = listaLetrasConfirmadas.join(" ");
     logDebug("Sesión terminada. Evaluando: " + transcripcionAcumulada);
 
@@ -147,49 +170,69 @@ function finalizarYEvaluar() {
     }, 600);
 }
 
-// CAMBIO: PROCESAMIENTO DE RESULTADOS POR "PIEZAS FINALES" (Resiliente a pausas)
+// CAMBIO: LÓGICA DE CAPTURA SENSIBLE (FINAL + INTERIM)
 reconocimiento.onresult = (event) => {
-    // Pescamos solo el último resultado procesado por el motor
-    const resultIndex = event.resultIndex;
-    const transcript = event.results[resultIndex][0].transcript.trim();
-    const esFinal = event.results[resultIndex].isFinal;
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const transcript = event.results[i][0].transcript.trim().toLowerCase();
+        const esFinal = event.results[i].isFinal;
 
-    if (esFinal) {
-        logDebug(`Recibido: "${transcript}"`);
-        // Guardamos este bloque en nuestra lista permanente
-        listaLetrasConfirmadas.push(transcript);
-        // Actualizamos la visualización para el usuario
-        txtEstado.innerText = `Escuchando: ${listaLetrasConfirmadas.join(" ").toUpperCase()}`;
-    }
-};
-
-// CAMBIO: REINICIO AUTOMÁTICO (KEEP-ALIVE) PARA PAUSAS LARGAS
-reconocimiento.onend = () => {
-    if (escuchando) {
-        logDebug("Micro se cerró por silencio. Reiniciando...");
-        try {
-            reconocimiento.start(); 
-        } catch(e) {
-            logDebug("Error en reinicio: " + e.message);
+        if (esFinal) {
+            logDebug(`Confirmado: "${transcript}"`);
+            listaLetrasConfirmadas.push(transcript);
+            interimActual = ""; // Se confirmó, ya no es huérfana
+        } else {
+            // Guardamos provisionalmente por si el micro se corta antes de ser final
+            interimActual = transcript;
         }
     }
+    
+    // Actualizamos visualización sumando lo confirmado y lo que está "en el aire"
+    const visual = [...listaLetrasConfirmadas];
+    if (interimActual) visual.push(interimActual);
+    txtEstado.innerText = `Escuchando: ${visual.join(" ").toUpperCase()}`;
 };
 
-// Lógica de validación con filtrado de caracteres individuales
+// CAMBIO: SISTEMA DE RESCATE EN ONEND
+reconocimiento.onend = () => {
+    if (escuchando) {
+        // RESCATE: Si el micro se cortó y había algo en interim, lo pasamos al baúl
+        if (interimActual) {
+            logDebug(`Rescatando letra huérfana: "${interimActual}"`);
+            listaLetrasConfirmadas.push(interimActual);
+            interimActual = "";
+        }
+
+        logDebug("Micro se cerró por silencio. Reiniciando...");
+        setTimeout(() => {
+            if (escuchando) {
+                try { 
+                    reconocimiento.start(); 
+                } catch(e) {
+                    logDebug("Fallo en reinicio: " + e.message);
+                }
+            }
+        }, 100);
+    }
+};
+
+// Lógica de validación con TRADUCTOR FONÉTICO y filtrado
 function evaluarDeletreo(transcript) {
     const objetoActual = bancoDePalabras[indiceActual];
     const palabraCorrecta = objetoActual.palabra.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
     
     let piezas = transcript.toLowerCase().split(/\s+/);
 
-    // Filtramos solo elementos de 1 letra (ignora palabras completas de relleno)
-    let letrasDeletreadas = piezas.filter(pieza => pieza.length === 1);
+    // CAMBIO: Traducimos palabras cortas a letras (ej: "see" -> "c")
+    let piezasTraducidas = piezas.map(p => mapaFonetico[p] || p);
+
+    // Filtramos solo elementos que quedaron de 1 letra
+    let letrasDeletreadas = piezasTraducidas.filter(pieza => pieza.length === 1);
     const deletreoFinal = letrasDeletreadas.join('');
     const deletreoVisible = letrasDeletreadas.join(' ').toUpperCase();
     
     if (deletreoFinal === "") {
-         txtEstado.innerText = `No escuché el deletreo, intenta separar más las letras.`;
-         logDebug("Evaluación fallida: No se detectaron letras sueltas.");
+         txtEstado.innerText = `No escuché el deletreo claro.`;
+         logDebug("Evaluación fallida: Sin letras tras traducción.");
     } else {
          txtEstado.innerText = `Escuché: "${deletreoVisible}"`;
     }
@@ -216,7 +259,7 @@ function evaluarDeletreo(transcript) {
         const deletreoAyuda = new SpeechSynthesisUtterance();
         deletreoAyuda.text = palabraCorrecta.split('').join(', '); 
         deletreoAyuda.lang = 'en-US';
-        deletreoAyuda.rate = 0.4; 
+        deletreoAyuda.rate = 0.4; // Velocidad lenta para facilitar el aprendizaje
         
         window.speechSynthesis.speak(deletreoAyuda);
 
@@ -264,7 +307,7 @@ function activarModoRepaso() {
 // Gestión de errores técnicos del micrófono
 reconocimiento.onerror = (event) => {
     logDebug("Error capturado: " + event.error);
-    if (event.error === 'no-speech') return; // Ignoramos si no hay voz, onend se encarga
+    if (event.error === 'no-speech') return; 
     btn.classList.remove('btn-grabar');
     btn.innerText = "REINTENTAR";
     escuchando = false;
