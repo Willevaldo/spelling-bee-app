@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <!-- El manifest va siempre en el head -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spelling Bee Trainer</title>
+    
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f0f0f0; margin: 0; padding: 20px; }
+        #canvas-app { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+        img { max-width: 80%; height: auto; border-radius: 10px; margin-bottom: 20px; display: none; }
+        .btn-principal { 
+            width: 100%; max-width: 400px; padding: 25px; font-size: 24px; 
+            border: none; border-radius: 50px; background: #007bff; color: white; cursor: pointer; 
+            transition: background 0.3s;
+        }
+        .btn-grabar { background: #dc3545; }
+        #resultado { margin-top: 20px; font-size: 32px; font-weight: bold; }
+        #estado { margin-bottom: 15px; color: #666; }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-app">
+        <img id="pistaImagen" src="" alt="Pista visual">
+        <div id="estado">Presiona el botón para iniciar</div>
+        <button id="accionBtn" class="btn-principal">REPRODUCIR PALABRA</button>
+        <div id="resultado"></div>
+    </div>
+
+    <!-- 1. Primero cargamos los datos -->
+    <script src="datos.js"></script>
+
+    <!-- 2. Luego la lógica del juego -->
+    <script src="app.js"></script>
+
+    <!-- 3. Al final, registramos el Service Worker para PWA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registrado', reg))
+                    .catch(err => console.error('Error al registrar SW', err));
+            });
+        }
+    </script>
+
+</body>
+</html>
