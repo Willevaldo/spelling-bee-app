@@ -8,6 +8,9 @@ let puntaje = 0;
 let listaErrores = [];
 let modoRepaso = false;
 
+// Variable nueva para mantener la memoria entre reinicios del motor
+let baulLetras = "";
+
 // Referencias a los elementos de la interfaz gráfica
 const btn = document.getElementById('accionBtn');
 const img = document.getElementById('pistaImagen');
@@ -113,9 +116,11 @@ function pronunciarPalabra() {
 }
 
 // Activa el micrófono y cambia el estado visual del botón
+// 1. MODIFICACIÓN: Iniciar la grabación limpiando la "bóveda"
 function iniciarGrabacion() {
     escuchando = true;
     transcripcionAcumulada = ""; 
+    baulLetras = ""; // Limpiamos la memoria persistente
     btn.innerText = "🛑 TOCAR AL TERMINAR";
     btn.classList.add('btn-grabar');
     
@@ -127,8 +132,9 @@ function iniciarGrabacion() {
 }
 
 // Detiene la escucha y dispara la evaluación del texto capturado
+// 4. MODIFICACIÓN: Asegurar que el stop sea definitivo al presionar el botón
 function finalizarYEvaluar() {
-    escuchando = false;
+    escuchando = false; // Primero marcamos falso para que onend NO lo reinicie
     reconocimiento.stop();
     btn.classList.remove('btn-grabar');
     btn.innerText = "PROCESANDO...";
@@ -139,15 +145,34 @@ function finalizarYEvaluar() {
 }
 
 // Procesa el audio capturado reconstruyendo el texto desde cero para evitar duplicados
+// 2. MODIFICACIÓN: El corazón del arreglo para Tablets
 reconocimiento.onresult = (event) => {
-    // CAMBIO: En lugar de sumar (+=), reconstruimos toda la frase desde el inicio del array
-    let textoTemporal = "";
+    let bloqueSesionActual = "";
+    
+    // Recorremos todos los resultados actuales del motor
     for (let i = 0; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-            textoTemporal += event.results[i][0].transcript + " ";
+            bloqueSesionActual += event.results[i][0].transcript + " ";
         }
     }
-    transcripcionAcumulada = textoTemporal;
+    
+    // La transcripción total es lo que guardamos en reinicios previos + lo de ahora
+    // Esto evita el "A A B A" porque reconstruye, no solo suma.
+    transcripcionAcumulada = baulLetras + bloqueSesionActual;
+};
+
+// 3. NUEVA FUNCIÓN: "Keep-Alive" para que no se corte por el silencio
+reconocimiento.onend = () => {
+    // Si el motor se apaga solo (por silencio) pero el botón de "STOP" no se ha pulsado...
+    if (escuchando) {
+        // Guardamos lo que llevamos en el "baúl" y reiniciamos el motor
+        baulLetras = transcripcionAcumulada;
+        try {
+            reconocimiento.start(); 
+        } catch(e) {
+            // Ya está intentando iniciar
+        }
+    }
 };
 
 // Lógica de validación con visualización de transcripción filtrada
