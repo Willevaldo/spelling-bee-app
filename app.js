@@ -1,20 +1,30 @@
-// Variables de control
+// Variables de control de estado y navegación
 let indiceActual = 0;
+let escuchando = false; 
+let transcripcionAcumulada = "";
 
-// Configuración del reconocimiento de voz
+// CAMBIO: CARGA DE SONIDOS DESDE CARPETA LOCAL PARA USO OFFLINE
+const sonidoExito = new Audio('./sounds/exito.mp3');
+const sonidoError = new Audio('./sounds/error.mp3');
+
+// NUEVO: PRE-CARGA DE AUDIOS PARA EVITAR LATENCIA EN TABLETS
+sonidoExito.load();
+sonidoError.load();
+
+// Configuración del motor de reconocimiento de voz
 const reconocimiento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 reconocimiento.lang = 'en-US';
-reconocimiento.interimResults = false;
+reconocimiento.continuous = true;
+reconocimiento.interimResults = true;
 
-// Referencias a los elementos del HTML
+// Referencias a los elementos de la interfaz gráfica
 const btn = document.getElementById('accionBtn');
 const img = document.getElementById('pistaImagen');
 const txtEstado = document.getElementById('estado');
 const txtResultado = document.getElementById('resultado');
 
-// 1. Función para que la tablet hable
+// Gestiona la reproducción de voz de la palabra actual
 function pronunciarPalabra() {
-    // Verificamos que aún existan palabras
     if (indiceActual >= bancoDePalabras.length) {
         txtEstado.innerText = "¡Felicidades! Completaste la lista.";
         btn.disabled = true;
@@ -24,72 +34,85 @@ function pronunciarPalabra() {
     const palabraObjetivo = bancoDePalabras[indiceActual].palabra;
     const mensaje = new SpeechSynthesisUtterance(palabraObjetivo);
     mensaje.lang = 'en-US';
-    mensaje.rate = 0.8; // Un poco más lento para que se entienda el deletreo
+    mensaje.rate = 0.8; 
     
-    // Actualizar imagen y estado
     img.src = bancoDePalabras[indiceActual].imagen;
     img.style.display = 'inline-block';
     txtEstado.innerText = "Escuchando palabra...";
     
-    // Hablar
     window.speechSynthesis.speak(mensaje);
     
-    // Cuando termine de hablar, empezar a grabar
     mensaje.onend = () => {
         iniciarGrabacion();
     };
 }
 
-// 2. Función para iniciar el micrófono
+// Activa el micrófono y cambia el estado visual del botón
 function iniciarGrabacion() {
-    btn.innerText = "🔴 GRABANDO... DELETREA";
+    escuchando = true;
+    transcripcionAcumulada = ""; 
+    btn.innerText = "🛑 TOCAR AL TERMINAR";
     btn.classList.add('btn-grabar');
+    
     try {
         reconocimiento.start();
     } catch (e) {
-        console.log("El reconocimiento ya estaba encendido");
+        console.log("Reconocimiento ya activo");
     }
 }
 
-// 3. Capturar el resultado del micrófono
-reconocimiento.onresult = (event) => {
-    const transcript = event.results[0][0].transcript.toLowerCase();
-    const palabraCorrecta = bancoDePalabras[indiceActual].palabra.toLowerCase();
-    
-    // 1. Convertimos el audio en una lista de palabras/letras
-    // "robot r o n e o robot" -> ["robot", "r", "o", "n", "e", "o", "robot"]
-    let piezas = transcript.split(/\s+/);
+// Detiene la escucha y dispara la evaluación del texto capturado
+function finalizarYEvaluar() {
+    escuchando = false;
+    reconocimiento.stop();
+    btn.classList.remove('btn-grabar');
+    btn.innerText = "PROCESANDO...";
 
-    // 2. Lógica de "Pelar": Si el niño dijo la palabra al inicio y al final, las removemos
-    // Esto nos deja solo con el deletreo central.
+    setTimeout(() => {
+        evaluarDeletreo(transcripcionAcumulada.trim());
+    }, 500);
+}
+
+// Procesa el audio capturado mientras el usuario sigue hablando
+reconocimiento.onresult = (event) => {
+    let parcial = "";
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+            transcripcionAcumulada += event.results[i][0].transcript + " ";
+        } else {
+            parcial += event.results[i][0].transcript;
+        }
+    }
+    txtEstado.innerText = `Escuché: ${transcripcionAcumulada} ${parcial}`;
+};
+
+// Lógica de validación de deletreo con formato "Word-Spell-Word"
+function evaluarDeletreo(transcript) {
+    const palabraCorrecta = bancoDePalabras[indiceActual].palabra.toLowerCase();
+    let piezas = transcript.toLowerCase().split(/\s+/);
+
     if (piezas.length > 1 && piezas[0] === palabraCorrecta) {
-        piezas.shift(); // Quita la primera palabra
+        piezas.shift(); 
     }
     if (piezas.length > 0 && piezas[piezas.length - 1] === palabraCorrecta) {
-        piezas.pop(); // Quita la última palabra
+        piezas.pop(); 
     }
 
-    // 3. Unión y Validación
-    // Si el deletreo fue "r o b o t", al unirlo da "robot".
-    // Si el deletreo fue "r o n e o", al unirlo da "roneo".
-    // Si el niño no deletreó y solo dijo "robot robot robot", al pelar queda "robot".
     const deletreoFinal = piezas.join('');
 
-    btn.classList.remove('btn-grabar');
-
-    // Comprobación estricta: lo que quedó debe ser igual a la palabra
     if (deletreoFinal === palabraCorrecta) {
         txtResultado.innerText = "✅ ¡EXCELENTE!";
         txtResultado.style.color = "green";
-        txtEstado.innerText = `Perfecto: "${transcript}"`;
+        // CAMBIO: REPRODUCCION DE SONIDO LOCAL DE EXITO
+        sonidoExito.play();
     } else {
         txtResultado.innerText = `❌ ERROR EN EL DELETREO`;
         txtResultado.style.color = "red";
-        // Aquí le mostramos qué fue lo que falló en el centro
+        // CAMBIO: REPRODUCCION DE SONIDO LOCAL DE ERROR
+        sonidoError.play();
         txtEstado.innerText = `Dijiste "${deletreoFinal}" en lugar de "${palabraCorrecta}"`;
     }
 
-    // Avanzar índice y actualizar botón (igual que antes)
     indiceActual++;
     if (indiceActual < bancoDePalabras.length) {
         btn.innerText = "SIGUIENTE PALABRA";
@@ -97,26 +120,30 @@ reconocimiento.onresult = (event) => {
         btn.innerText = "🎉 JUEGO TERMINADO";
         btn.disabled = true;
     }
-};
+}
 
-// Error en el micrófono
+// Manejo de errores técnicos del micrófono
 reconocimiento.onerror = (event) => {
     btn.classList.remove('btn-grabar');
     btn.innerText = "REINTENTAR";
+    escuchando = false;
     txtEstado.innerText = "Error de micrófono: " + event.error;
 };
 
-// 4. Evento del botón
+// Controlador de eventos para el botón principal (Play / Stop)
 btn.addEventListener('click', () => {
-    txtResultado.innerText = "";
-    pronunciarPalabra();
+    if (!escuchando) {
+        txtResultado.innerText = "";
+        pronunciarPalabra();
+    } else {
+        finalizarYEvaluar();
+    }
 });
 
+// Sincroniza la visualización de la versión al cargar la página
 window.addEventListener('load', () => {
     const display = document.getElementById('version-display');
     if (display && typeof APP_VERSION !== 'undefined') {
         display.innerText = `Versión: ${APP_VERSION}`;
-    } else {
-        console.error("No se pudo cargar la versión. Verifica version.js");
     }
 });

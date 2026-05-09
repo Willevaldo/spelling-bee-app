@@ -5,6 +5,8 @@ const assets = [
   './app.js',
   './datos.js',
   './manifest.json',
+  './sounds/exito.mp3', // NUEVO: REGISTRO DE SONIDO PARA MODO OFFLINE
+  './sounds/error.mp3',  // NUEVO: REGISTRO DE SONIDO PARA MODO OFFLINE
   // Añade aquí tus imágenes nuevas si quieres que funcionen offline
   './img/apple.jpg',
   './img/robot.jpg',
