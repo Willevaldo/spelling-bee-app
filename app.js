@@ -54,26 +54,39 @@ function iniciarGrabacion() {
 
 // 3. Capturar el resultado del micrófono
 reconocimiento.onresult = (event) => {
-    const captado = event.results[0][0].transcript.toLowerCase().replace(/\s+/g, '');
-    const correcta = bancoDePalabras[indiceActual].palabra.toLowerCase();
+    // 1. Obtenemos lo que el niño dijo (ej: "Apple A P P L E Apple")
+    const transcript = event.results[0][0].transcript.toLowerCase();
+    const palabraCorrecta = bancoDePalabras[indiceActual].palabra.toLowerCase();
     
+    // 2. Limpieza total: quitamos espacios y guiones
+    // "apple a p p l e apple" -> "appleappleapple"
+    const procesado = transcript.replace(/[\s-]/g, '');
+
+    // 3. Evaluación flexible
+    // Verificamos si la palabra correcta existe dentro de lo que el niño dijo.
+    // Esto acepta tanto "apple" como "appleappleapple" o "apple a p p l e apple"
+    const esCorrecto = procesado.includes(palabraCorrecta);
+
     btn.classList.remove('btn-grabar');
 
-    if (captado === correcta) {
-        txtResultado.innerText = "✅ ¡CORRECTO!";
+    if (esCorrecto) {
+        txtResultado.innerText = "✅ ¡EXCELENTE!";
         txtResultado.style.color = "green";
+        // Feedback visual de lo que entendió el sistema (opcional)
+        txtEstado.innerText = `Dijiste: "${transcript}"`;
     } else {
-        txtResultado.innerText = `❌ ERROR: Entendí "${captado}"`;
+        txtResultado.innerText = `❌ INTÉNTALO DE NUEVO`;
         txtResultado.style.color = "red";
+        txtEstado.innerText = `Escuché: "${transcript}"`;
     }
-    
+
     // Avanzar a la siguiente palabra
     indiceActual++;
 
     if (indiceActual < bancoDePalabras.length) {
         btn.innerText = "SIGUIENTE PALABRA";
     } else {
-        btn.innerText = "🎉 JUEGO TERMINADO";
+        btn.innerText = "🎉 ¡TERMINAMOS POR HOY!";
         btn.disabled = true;
     }
 };
