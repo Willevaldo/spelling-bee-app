@@ -23,7 +23,7 @@
         h1 { color: #00796b; font-size: 2.5em; margin-top: 0; }
         p { color: #555; font-size: 1.2em; margin-bottom: 30px; }
 
-        /* CAMBIO: ESTILOS DEL MENU DINAMICO */
+        /* Estilos del Menú Dinámico */
         .contenedor-grado { 
             background: #f8f9fa; 
             border: 2px solid #e9ecef; 
@@ -32,7 +32,6 @@
             margin-bottom: 25px; 
         }
         
-        /* Botón Verde Grande (Todo el Grado) */
         .btn-grado-completo { 
             background: #28a745; 
             color: white; 
@@ -49,12 +48,11 @@
         }
         .btn-grado-completo:active { transform: scale(0.98); }
 
-        /* Botones Azules (Tests individuales) */
         .contenedor-tests {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 10px; /* Espacio entre botones */
+            gap: 10px;
         }
 
         .btn-test { 
@@ -68,12 +66,12 @@
             cursor: pointer; 
             box-shadow: 0 3px 5px rgba(23, 162, 184, 0.3);
             transition: transform 0.1s, background 0.3s;
-            flex-grow: 1; /* Permite que los botones ocupen el espacio disponible */
+            flex-grow: 1;
             max-width: 150px;
         }
         .btn-test:active { transform: scale(0.95); }
 
-        /* Estilos del Juego (Canvas App) */
+        /* Estilos del Juego */
         img { max-width: 70%; height: auto; border-radius: 15px; margin-bottom: 20px; display: none; border: 3px solid #eee; }
         
         .btn-principal { 
@@ -89,14 +87,12 @@
         #estado { margin-bottom: 20px; color: #555; font-size: 1.1em; min-height: 25px; font-style: italic; }
         #score-container { font-size: 28px; font-weight: 900; margin-bottom: 15px; color: #ff9800; display: none; }
 
-        /* Animación para el botón de grabación */
         @keyframes latido {
             0% { transform: scale(1); }
             50% { transform: scale(1.02); }
             100% { transform: scale(1); }
         }
 
-        /* Botón de regreso */
         .btn-volver {
             margin-top: 30px; background: none; border: none; color: #6c757d; font-size: 16px; text-decoration: underline; cursor: pointer; padding: 10px;
         }
@@ -104,17 +100,14 @@
 </head>
 <body>
 
-    <!-- Etiqueta de versión -->
     <div id="version-display" style="position: fixed; bottom: 10px; right: 10px; font-size: 12px; color: #999; background: rgba(255,255,255,0.7); padding: 2px 8px; border-radius: 10px; pointer-events: none; z-index: 1000;">v0.0.0</div>
 
-    <!-- CONTENEDOR DE MENU INICIAL -->
     <div id="menu-inicial">
         <h1>🐝 Spelling Bee</h1>
         <p>Elige tu nivel para practicar</p>
         <div id="lista-grados"></div>
     </div>
 
-    <!-- CONTENEDOR DEL JUEGO -->
     <div id="canvas-app" style="display: none;">
         <div id="score-container">
             ⭐ Puntaje: <span id="puntaje">0</span>
@@ -129,27 +122,27 @@
         <button class="btn-volver" onclick="location.reload()">⬅️ Volver al menú</button>
     </div>
 
-        <!-- Añadir esto justo antes de cerrar el <body> -->
-        <div id="debug-log" style="
-            margin: 20px auto; 
-            max-width: 600px; 
-            background: #222; 
-            color: #0f0; 
-            font-family: monospace; 
-            font-size: 10px; 
-            padding: 10px; 
-            text-align: left; 
-            border-radius: 5px; 
-            height: 100px; 
-            overflow-y: scroll;
-            display: block; 
-        ">--- DEBUG LOG ---<br></div>
-
     <script src="version.js"></script>
     <script src="datos.js"></script>
-    <script src="app.js"></script>
+    <script src="core.js"></script>
 
-    <!-- Configuración PWA -->
+    <script>
+        const esTablet = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        const motorScript = document.createElement('script');
+        
+        if (esTablet) {
+            motorScript.src = "app_tablet.js";
+            console.log("Sistema: Dispositivo táctil detectado. Cargando motor de Tablet.");
+        } else {
+            motorScript.src = "app_pc.js";
+            console.log("Sistema: Computadora detectada. Cargando motor de PC.");
+        }
+        
+        document.body.appendChild(motorScript);
+    </script>
+
     <script>
         const isLocalhost = Boolean(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168.'));
         if ('serviceWorker' in navigator) {
