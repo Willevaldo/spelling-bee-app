@@ -55,11 +55,25 @@
 
     <!-- Registramos el Service Worker para PWA -->
     <script>
+        // Detectamos si estamos en un servidor local
+        const isLocalhost = Boolean(
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1' ||
+            window.location.hostname.includes('192.168.') // Para cuando lo veas desde el wifi
+        );
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Service Worker registrado', reg))
-                    .catch(err => console.error('Error al registrar SW', err));
+                if (isLocalhost) {
+                    console.log('Modo Desarrollo: Desactivando Service Worker para ver cambios instantáneos.');
+                    // Opcional: Desregistrar cualquier SW existente para que no moleste
+                    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+                } else {
+                    // Modo Producción (GitHub): Activar PWA
+                    navigator.serviceWorker.register('sw.js')
+                        .then(reg => console.log('PWA lista para modo offline', reg))
+                        .catch(err => console.error('Error en PWA', err));
+                }
             });
         }
     </script>

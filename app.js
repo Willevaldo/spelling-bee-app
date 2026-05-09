@@ -53,39 +53,48 @@ function iniciarGrabacion() {
 
 // 3. Capturar el resultado del micrófono
 reconocimiento.onresult = (event) => {
-    // 1. Obtenemos lo que el niño dijo (ej: "Apple A P P L E Apple")
     const transcript = event.results[0][0].transcript.toLowerCase();
     const palabraCorrecta = bancoDePalabras[indiceActual].palabra.toLowerCase();
     
-    // 2. Limpieza total: quitamos espacios y guiones
-    // "apple a p p l e apple" -> "appleappleapple"
-    const procesado = transcript.replace(/[\s-]/g, '');
+    // 1. Convertimos el audio en una lista de palabras/letras
+    // "robot r o n e o robot" -> ["robot", "r", "o", "n", "e", "o", "robot"]
+    let piezas = transcript.split(/\s+/);
 
-    // 3. Evaluación flexible
-    // Verificamos si la palabra correcta existe dentro de lo que el niño dijo.
-    // Esto acepta tanto "apple" como "appleappleapple" o "apple a p p l e apple"
-    const esCorrecto = procesado.includes(palabraCorrecta);
+    // 2. Lógica de "Pelar": Si el niño dijo la palabra al inicio y al final, las removemos
+    // Esto nos deja solo con el deletreo central.
+    if (piezas.length > 1 && piezas[0] === palabraCorrecta) {
+        piezas.shift(); // Quita la primera palabra
+    }
+    if (piezas.length > 0 && piezas[piezas.length - 1] === palabraCorrecta) {
+        piezas.pop(); // Quita la última palabra
+    }
+
+    // 3. Unión y Validación
+    // Si el deletreo fue "r o b o t", al unirlo da "robot".
+    // Si el deletreo fue "r o n e o", al unirlo da "roneo".
+    // Si el niño no deletreó y solo dijo "robot robot robot", al pelar queda "robot".
+    const deletreoFinal = piezas.join('');
 
     btn.classList.remove('btn-grabar');
 
-    if (esCorrecto) {
+    // Comprobación estricta: lo que quedó debe ser igual a la palabra
+    if (deletreoFinal === palabraCorrecta) {
         txtResultado.innerText = "✅ ¡EXCELENTE!";
         txtResultado.style.color = "green";
-        // Feedback visual de lo que entendió el sistema (opcional)
-        txtEstado.innerText = `Dijiste: "${transcript}"`;
+        txtEstado.innerText = `Perfecto: "${transcript}"`;
     } else {
-        txtResultado.innerText = `❌ INTÉNTALO DE NUEVO`;
+        txtResultado.innerText = `❌ ERROR EN EL DELETREO`;
         txtResultado.style.color = "red";
-        txtEstado.innerText = `Escuché: "${transcript}"`;
+        // Aquí le mostramos qué fue lo que falló en el centro
+        txtEstado.innerText = `Dijiste "${deletreoFinal}" en lugar de "${palabraCorrecta}"`;
     }
 
-    // Avanzar a la siguiente palabra
+    // Avanzar índice y actualizar botón (igual que antes)
     indiceActual++;
-
     if (indiceActual < bancoDePalabras.length) {
         btn.innerText = "SIGUIENTE PALABRA";
     } else {
-        btn.innerText = "🎉 ¡TERMINAMOS POR HOY!";
+        btn.innerText = "🎉 JUEGO TERMINADO";
         btn.disabled = true;
     }
 };
