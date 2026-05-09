@@ -33,31 +33,34 @@ reconocimiento.lang = 'en-US';
 reconocimiento.continuous = true;
 reconocimiento.interimResults = true;
 
-// CAMBIO: FUNCIÓN PARA GENERAR EL MENÚ DE GRADOS Y TESTS DINÁMICAMENTE
+// CAMBIO: FUNCIÓN PARA GENERAR EL MENÚ CON NUEVA ESTRUCTURA CSS
 function generarMenu() {
-    listaGradosUI.innerHTML = ''; // Limpia el contenedor
+    listaGradosUI.innerHTML = '';
 
     for (let grado in bibliotecaPalabras) {
-        // Crea un contenedor para cada grado
         const divGrado = document.createElement('div');
         divGrado.className = 'contenedor-grado';
         
-        // BOTÓN PARA CARGAR TODAS LAS PALABRAS DEL GRADO
+        // Botón principal del grado
         const btnTodoGrado = document.createElement('button');
         btnTodoGrado.className = 'btn-grado-completo';
-        btnTodoGrado.innerText = `Practice All ${grado}`;
+        btnTodoGrado.innerText = `▶️ Practicar Todo ${grado}`;
         btnTodoGrado.onclick = () => cargarNivel(grado, null);
         divGrado.appendChild(btnTodoGrado);
 
-        // BOTONES PARA CADA TEST INDIVIDUAL
+        // Contenedor flex para alinear los tests horizontalmente
+        const divTests = document.createElement('div');
+        divTests.className = 'contenedor-tests';
+
         for (let test in bibliotecaPalabras[grado]) {
             const btnTest = document.createElement('button');
             btnTest.className = 'btn-test';
             btnTest.innerText = test;
             btnTest.onclick = () => cargarNivel(grado, test);
-            divGrado.appendChild(btnTest);
+            divTests.appendChild(btnTest);
         }
 
+        divGrado.appendChild(divTests);
         listaGradosUI.appendChild(divGrado);
     }
 }
@@ -148,16 +151,25 @@ function evaluarDeletreo(transcript) {
     
     let piezas = transcript.toLowerCase().split(/\s+/);
 
-    // Lógica "Pelar la fruta" (elimina repeticiones de la palabra en extremos)
-    if (piezas.length > 1 && piezas[0] === palabraCorrecta) piezas.shift();
-    if (piezas.length > 0 && piezas[piezas.length - 1] === palabraCorrecta) piezas.pop();
+    // CAMBIO: NUEVA LÓGICA DE EXTRACCIÓN (Adiós a "Pelar la fruta")
+    // 2. Filtramos la lista para quedarnos ÚNICAMENTE con los elementos que son 1 sola letra
+    let letrasDeletreadas = piezas.filter(pieza => pieza.length === 1);
 
-    const deletreoFinal = piezas.join('');
+    // 3. Unimos las letras que sobrevivieron al filtro
+    const deletreoFinal = letrasDeletreadas.join('');
     
-    // MUESTRA SOLO LAS LETRAS RESULTANTES (FRUTA PELADA)
-    const deletreoVisible = piezas.join(' ').toUpperCase();
-    txtEstado.innerText = `Escuché: "${deletreoVisible}"`;
+    // MUESTRA SOLO LAS LETRAS EXTRAÍDAS (Para que sepas qué calificó realmente)
+    const deletreoVisible = letrasDeletreadas.join(' ').toUpperCase();
+    
+    // Si el niño no deletreó letra por letra (ej. dijo "dog" de golpe sin separar)
+    // letrasDeletreadas estará vacío, así que evitamos que muestre un texto en blanco confuso.
+    if (deletreoFinal === "") {
+         txtEstado.innerText = `Escuché una palabra completa, pero no el deletreo.`;
+    } else {
+         txtEstado.innerText = `Escuché: "${deletreoVisible}"`;
+    }
 
+    // 4. Calificamos la palabra armada con las letras
     if (deletreoFinal === palabraCorrecta) {
         txtResultado.innerText = "✅ ¡EXCELENTE!";
         txtResultado.style.color = "green";

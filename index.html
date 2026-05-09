@@ -7,60 +7,139 @@
     <title>Spelling Bee Trainer</title>
     
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f0f0f0; margin: 0; padding: 20px; }
-        #canvas-app, #menu-inicial { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+        /* Estilos Base */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #e0f2f1; margin: 0; padding: 20px; }
         
-        /* CAMBIO: ESTILOS PARA LOS BOTONES DEL MENU */
-        .contenedor-grado { margin-bottom: 30px; padding: 15px; border: 1px solid #eee; border-radius: 10px; }
-        .btn-test { background: #6c757d; color: white; padding: 10px 20px; margin: 5px; border-radius: 20px; border: none; cursor: pointer; }
-        .btn-grado-completo { background: #28a745; color: white; padding: 12px; width: 100%; border-radius: 10px; border: none; margin-bottom: 10px; cursor: pointer; font-weight: bold; }
-        
-        img { max-width: 80%; height: auto; border-radius: 10px; margin-bottom: 20px; display: none; }
-        .btn-principal { 
-            width: 100%; max-width: 400px; padding: 25px; font-size: 24px; 
-            border: none; border-radius: 50px; background: #007bff; color: white; cursor: pointer; 
-            transition: background 0.3s;
+        /* Contenedores Principales */
+        #menu-inicial, #canvas-app { 
+            background: white; 
+            border-radius: 20px; 
+            padding: 30px 20px; 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1); 
+            max-width: 600px; 
+            margin: 0 auto; 
         }
-        .btn-grabar { background: #dc3545; }
-        #resultado { margin-top: 20px; font-size: 32px; font-weight: bold; }
-        #estado { margin-bottom: 15px; color: #666; }
-        #score-container { font-size: 24px; font-weight: bold; margin-bottom: 10px; color: #007bff; display: none; }
+        
+        h1 { color: #00796b; font-size: 2.5em; margin-top: 0; }
+        p { color: #555; font-size: 1.2em; margin-bottom: 30px; }
+
+        /* CAMBIO: ESTILOS DEL MENU DINAMICO */
+        .contenedor-grado { 
+            background: #f8f9fa; 
+            border: 2px solid #e9ecef; 
+            border-radius: 15px; 
+            padding: 20px; 
+            margin-bottom: 25px; 
+        }
+        
+        /* Botón Verde Grande (Todo el Grado) */
+        .btn-grado-completo { 
+            background: #28a745; 
+            color: white; 
+            font-size: 20px; 
+            font-weight: bold; 
+            padding: 15px; 
+            width: 100%; 
+            border-radius: 12px; 
+            border: none; 
+            margin-bottom: 15px; 
+            cursor: pointer; 
+            box-shadow: 0 4px 6px rgba(40, 167, 69, 0.3);
+            transition: transform 0.1s, background 0.3s;
+        }
+        .btn-grado-completo:active { transform: scale(0.98); }
+
+        /* Botones Azules (Tests individuales) */
+        .contenedor-tests {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px; /* Espacio entre botones */
+        }
+
+        .btn-test { 
+            background: #17a2b8; 
+            color: white; 
+            font-size: 16px; 
+            font-weight: bold;
+            padding: 12px 20px; 
+            border-radius: 25px; 
+            border: none; 
+            cursor: pointer; 
+            box-shadow: 0 3px 5px rgba(23, 162, 184, 0.3);
+            transition: transform 0.1s, background 0.3s;
+            flex-grow: 1; /* Permite que los botones ocupen el espacio disponible */
+            max-width: 150px;
+        }
+        .btn-test:active { transform: scale(0.95); }
+
+        /* Estilos del Juego (Canvas App) */
+        img { max-width: 70%; height: auto; border-radius: 15px; margin-bottom: 20px; display: none; border: 3px solid #eee; }
+        
+        .btn-principal { 
+            width: 100%; max-width: 400px; padding: 25px; font-size: 24px; font-weight: bold;
+            border: none; border-radius: 50px; background: #007bff; color: white; cursor: pointer; 
+            box-shadow: 0 6px 12px rgba(0, 123, 255, 0.3);
+            transition: background 0.3s, transform 0.1s;
+        }
+        .btn-principal:active { transform: scale(0.97); }
+        .btn-grabar { background: #dc3545; box-shadow: 0 6px 12px rgba(220, 53, 69, 0.4); animation: latido 1.5s infinite; }
+        
+        #resultado { margin-top: 20px; font-size: 32px; font-weight: bold; min-height: 40px; }
+        #estado { margin-bottom: 20px; color: #555; font-size: 1.1em; min-height: 25px; font-style: italic; }
+        #score-container { font-size: 28px; font-weight: 900; margin-bottom: 15px; color: #ff9800; display: none; }
+
+        /* Animación para el botón de grabación */
+        @keyframes latido {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        /* Botón de regreso */
+        .btn-volver {
+            margin-top: 30px; background: none; border: none; color: #6c757d; font-size: 16px; text-decoration: underline; cursor: pointer; padding: 10px;
+        }
     </style>
 </head>
 <body>
 
+    <!-- Etiqueta de versión -->
     <div id="version-display" style="position: fixed; bottom: 10px; right: 10px; font-size: 12px; color: #999; background: rgba(255,255,255,0.7); padding: 2px 8px; border-radius: 10px; pointer-events: none; z-index: 1000;">v0.0.0</div>
 
-    <!-- CAMBIO: NUEVO CONTENEDOR DE MENU INICIAL -->
+    <!-- CONTENEDOR DE MENU INICIAL -->
     <div id="menu-inicial">
-        <h1>Spelling Bee</h1>
-        <p>Choose a level to practice:</p>
+        <h1>🐝 Spelling Bee</h1>
+        <p>Elige tu nivel para practicar</p>
         <div id="lista-grados"></div>
     </div>
 
-    <!-- CAMBIO: EL JUEGO AHORA ESTA OCULTO POR DEFECTO -->
-    <div id="score-container">
-        Score: <span id="puntaje">0</span>
-    </div>
-
+    <!-- CONTENEDOR DEL JUEGO -->
     <div id="canvas-app" style="display: none;">
+        <div id="score-container">
+            ⭐ Puntaje: <span id="puntaje">0</span>
+        </div>
+        
         <img id="pistaImagen" src="" alt="Pista visual">
-        <div id="estado">Press the button to start</div>
-        <button id="accionBtn" class="btn-principal">PLAY WORD</button>
+        <div id="estado">Presiona el botón para iniciar</div>
+        
+        <button id="accionBtn" class="btn-principal">REPRODUCIR PALABRA</button>
         <div id="resultado"></div>
-        <br>
-        <button onclick="location.reload()" style="margin-top: 20px; background: none; border: none; color: #007bff; text-decoration: underline; cursor: pointer;">Volver al menú</button>
+        
+        <button class="btn-volver" onclick="location.reload()">⬅️ Volver al menú</button>
     </div>
 
     <script src="version.js"></script>
     <script src="datos.js"></script>
     <script src="app.js"></script>
 
+    <!-- Configuración PWA -->
     <script>
         const isLocalhost = Boolean(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168.'));
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 if (isLocalhost) {
+                    console.log('Modo Desarrollo: PWA desactivada.');
                     navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
                 } else {
                     navigator.serviceWorker.register('sw.js').catch(err => console.error('Error en PWA', err));
