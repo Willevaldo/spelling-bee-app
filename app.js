@@ -31,7 +31,8 @@ sonidoError.load();
 const reconocimiento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 reconocimiento.lang = 'en-US';
 reconocimiento.continuous = true;
-reconocimiento.interimResults = true;
+// CAMBIO: Desactivamos resultados intermedios para mayor estabilidad en tablets
+reconocimiento.interimResults = false;
 
 // CAMBIO: FUNCIÓN PARA GENERAR EL MENÚ CON NUEVA ESTRUCTURA CSS
 function generarMenu() {
@@ -137,13 +138,16 @@ function finalizarYEvaluar() {
     }, 500);
 }
 
-// Procesa el audio capturado internamente
+// Procesa el audio capturado reconstruyendo el texto desde cero para evitar duplicados
 reconocimiento.onresult = (event) => {
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
+    // CAMBIO: En lugar de sumar (+=), reconstruimos toda la frase desde el inicio del array
+    let textoTemporal = "";
+    for (let i = 0; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-            transcripcionAcumulada += event.results[i][0].transcript + " ";
+            textoTemporal += event.results[i][0].transcript + " ";
         }
     }
+    transcripcionAcumulada = textoTemporal;
 };
 
 // Lógica de validación con visualización de transcripción filtrada
