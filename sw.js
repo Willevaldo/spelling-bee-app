@@ -1,21 +1,17 @@
-const CACHE_NAME = `spelling-bee-${APP_VERSION}`; // <--- Cambia este número (v1, v2, v3) cada vez que subas algo
+const CACHE_NAME = `spelling-bee-${APP_VERSION}`; 
 const assets = [
   './',
   './index.html',
   './app.js',
   './datos.js',
   './manifest.json',
-  './sounds/exito.mp3', // NUEVO: REGISTRO DE SONIDO PARA MODO OFFLINE
-  './sounds/error.mp3',  // NUEVO: REGISTRO DE SONIDO PARA MODO OFFLINE
-  // Añade aquí tus imágenes nuevas si quieres que funcionen offline
-  './img/apple.jpg',
-  './img/robot.jpg',
-  './img/science.jpg'
+  './sounds/exito.mp3',
+  './sounds/error.mp3'
 ];
 
-// Instalación: Guarda los archivos en el caché
+// Instalación: Guarda solo lo esencial (el esqueleto)
 self.addEventListener('install', event => {
-  self.skipWaiting(); // Fuerza al nuevo SW a tomar el control de inmediato
+  self.skipWaiting(); 
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(assets);
@@ -23,7 +19,7 @@ self.addEventListener('install', event => {
   );
 });
 
-// Activación: Borra cachés viejos
+// Activación: Limpieza total de versiones viejas
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -34,9 +30,23 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Estrategia: Primero buscar en internet, si falla, usar el caché
+// CAMBIO: Estrategia de Red con Guardado Dinámico
 self.addEventListener('fetch', event => {
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    // 1. Intentamos ir a la red primero
+    fetch(event.request)
+      .then(networkResponse => {
+        // Si la respuesta es válida, la guardamos en el caché
+        return caches.open(CACHE_NAME).then(cache => {
+          // IMPORTANTE: Debemos clonar la respuesta. 
+          // Una respuesta es un flujo que solo se puede leer una vez.
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        });
+      })
+      .catch(() => {
+        // 2. Si el internet falla (offline), buscamos en el caché
+        return caches.match(event.request);
+      })
   );
 });

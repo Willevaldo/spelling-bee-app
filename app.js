@@ -41,14 +41,12 @@ function generarMenu() {
         const divGrado = document.createElement('div');
         divGrado.className = 'contenedor-grado';
         
-        // Botón principal del grado
         const btnTodoGrado = document.createElement('button');
         btnTodoGrado.className = 'btn-grado-completo';
         btnTodoGrado.innerText = `▶️ Practicar Todo ${grado}`;
         btnTodoGrado.onclick = () => cargarNivel(grado, null);
         divGrado.appendChild(btnTodoGrado);
 
-        // Contenedor flex para alinear los tests horizontalmente
         const divTests = document.createElement('div');
         divTests.className = 'contenedor-tests';
 
@@ -65,7 +63,7 @@ function generarMenu() {
     }
 }
 
-// CAMBIO: LOGICA DE FILTRADO Y CARGA DE PALABRAS SEGÚN SELECCIÓN
+// Filtra y prepara el banco de palabras según la elección del usuario
 function cargarNivel(grado, test) {
     // Vaciamos el banco actual (usando length=0 para respetar si es const)
     bancoDePalabras.length = 0; 
@@ -89,24 +87,28 @@ function cargarNivel(grado, test) {
     scoreUI.style.display = 'block';
 }
 
-// Gestiona la reproducción de voz de la palabra actual
+// Gestiona la síntesis de voz y la carga de imágenes
 function pronunciarPalabra() {
     if (indiceActual >= bancoDePalabras.length) return;
 
-    const palabraObjetivo = bancoDePalabras[indiceActual].palabra;
-    const mensaje = new SpeechSynthesisUtterance(palabraObjetivo);
+    let palabraObjetivo = bancoDePalabras[indiceActual].palabra;
+
+    // CAMBIO: LIMPIEZA DE PARÉNTESIS PARA LA VOZ (Ej. "mouse (computer)" -> "mouse")
+    const palabraParaHablar = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '').trim();
+
+    const mensaje = new SpeechSynthesisUtterance(palabraParaHablar);
     mensaje.lang = 'en-US';
     mensaje.rate = 0.8; 
     
-    img.src = bancoDePalabras[indiceActual].imagen;
+    // CAMBIO: FORMATEO DE NOMBRE DE ARCHIVO PARA IMAGEN (Mantiene compatibilidad con el script de descarga)
+    const nombreImagen = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '_').replace(/\s+/g, '_').replace(/__+/g, '_').trim('_');
+    img.src = `./img/${nombreImagen}.jpg`;
+    
     img.style.display = 'inline-block';
-    txtEstado.innerText = modoRepaso ? "Repasando..." : "Escuchando...";
+    txtEstado.innerText = "Escuchando...";
     
     window.speechSynthesis.speak(mensaje);
-    
-    mensaje.onend = () => {
-        iniciarGrabacion();
-    };
+    mensaje.onend = () => iniciarGrabacion();
 }
 
 // Activa el micrófono y cambia el estado visual del botón
@@ -147,29 +149,25 @@ reconocimiento.onresult = (event) => {
 // Lógica de validación con visualización de transcripción filtrada
 function evaluarDeletreo(transcript) {
     const objetoActual = bancoDePalabras[indiceActual];
-    const palabraCorrecta = objetoActual.palabra.toLowerCase();
+    
+    // CAMBIO: LIMPIEZA DE PARÉNTESIS EN LA PALABRA OBJETIVO PARA LA COMPARACIÓN
+    const palabraCorrecta = objetoActual.palabra.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
     
     let piezas = transcript.toLowerCase().split(/\s+/);
 
-    // CAMBIO: NUEVA LÓGICA DE EXTRACCIÓN (Adiós a "Pelar la fruta")
-    // 2. Filtramos la lista para quedarnos ÚNICAMENTE con los elementos que son 1 sola letra
+    // CAMBIO: FILTRADO DE LETRAS ÚNICAS (Ignora palabras completas mal entendidas por el motor)
     let letrasDeletreadas = piezas.filter(pieza => pieza.length === 1);
-
-    // 3. Unimos las letras que sobrevivieron al filtro
     const deletreoFinal = letrasDeletreadas.join('');
     
-    // MUESTRA SOLO LAS LETRAS EXTRAÍDAS (Para que sepas qué calificó realmente)
     const deletreoVisible = letrasDeletreadas.join(' ').toUpperCase();
     
-    // Si el niño no deletreó letra por letra (ej. dijo "dog" de golpe sin separar)
-    // letrasDeletreadas estará vacío, así que evitamos que muestre un texto en blanco confuso.
     if (deletreoFinal === "") {
-         txtEstado.innerText = `Escuché una palabra completa, pero no el deletreo.`;
+         txtEstado.innerText = `No escuché el deletreo, solo palabras completas.`;
     } else {
          txtEstado.innerText = `Escuché: "${deletreoVisible}"`;
     }
 
-    // 4. Calificamos la palabra armada con las letras
+    // Validación del resultado y asignación de puntaje
     if (deletreoFinal === palabraCorrecta) {
         txtResultado.innerText = "✅ ¡EXCELENTE!";
         txtResultado.style.color = "green";
@@ -207,11 +205,10 @@ function evaluarDeletreo(transcript) {
     }
 }
 
-// Gestiona el paso entre palabras y activa la fase de repaso de errores
+// Controla el flujo hacia la siguiente palabra o fase de repaso
 function avanzarSiguiente() {
     indiceActual++;
 
-    // VERIFICAMOS SI TERMINAMOS LA LISTA ACTUAL
     if (indiceActual < bancoDePalabras.length) {
         btn.innerText = modoRepaso ? "SIGUIENTE (REPASO)" : "SIGUIENTE PALABRA";
     } else {
@@ -226,7 +223,7 @@ function avanzarSiguiente() {
     }
 }
 
-// Configura el banco de palabras para repetir solo las que se fallaron
+// Reconfigura el banco de datos para trabajar solo con las palabras fallidas
 function activarModoRepaso() {
     modoRepaso = true;
     bancoDePalabras.length = 0; 
@@ -240,7 +237,7 @@ function activarModoRepaso() {
     txtResultado.style.color = "#007bff";
 }
 
-// Manejo de errores técnicos del micrófono
+// Manejo de interrupciones o fallos en el reconocimiento de voz
 reconocimiento.onerror = (event) => {
     btn.classList.remove('btn-grabar');
     btn.innerText = "REINTENTAR";
@@ -248,7 +245,7 @@ reconocimiento.onerror = (event) => {
     txtEstado.innerText = "Error de micrófono: " + event.error;
 };
 
-// Controlador de eventos para el botón principal (Play / Stop)
+// Controlador de eventos para el botón principal de interacción
 btn.addEventListener('click', () => {
     if (!escuchando) {
         txtResultado.innerText = "";
