@@ -30,13 +30,16 @@
         <div id="resultado"></div>
     </div>
 
-    <!-- 1. Primero cargamos los datos -->
+    <!-- Cargar primero la versión -->
+    <script src="version.js"></script>
+
+    <!-- Cargamos los datos -->
     <script src="datos.js"></script>
 
-    <!-- 2. Luego la lógica del juego -->
+    <!-- Luego la lógica del juego -->
     <script src="app.js"></script>
 
-    <!-- 3. Al final, registramos el Service Worker para PWA -->
+    <!-- Registramos el Service Worker para PWA -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -46,6 +49,20 @@
             });
         }
     </script>
+
+    <!-- Etiqueta de versión flotante -->
+    <div id="version-display" style="
+        position: fixed; 
+        bottom: 10px; 
+        right: 10px; 
+        font-size: 12px; 
+        color: #999; 
+        background: rgba(255,255,255,0.7); 
+        padding: 2px 8px; 
+        border-radius: 10px; 
+        pointer-events: none;
+        z-index: 1000;
+    ">v0.0.0</div>
 
 </body>
 </html>

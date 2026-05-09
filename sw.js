@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spelling-bee-v1.0'; // <--- Cambia este número (v1, v2, v3) cada vez que subas algo
+const CACHE_NAME = `spelling-bee-${APP_VERSION}`; // <--- Cambia este número (v1, v2, v3) cada vez que subas algo
 const assets = [
   './',
   './index.html',

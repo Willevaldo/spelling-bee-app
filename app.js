@@ -103,3 +103,5 @@ btn.addEventListener('click', () => {
     txtResultado.innerText = "";
     pronunciarPalabra();
 });
+
+document.getElementById('version-display').innerText = `Versión: ${APP_VERSION}`;
