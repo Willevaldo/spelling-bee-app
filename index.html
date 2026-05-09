@@ -129,6 +129,22 @@
         <button class="btn-volver" onclick="location.reload()">⬅️ Volver al menú</button>
     </div>
 
+        <!-- Añadir esto justo antes de cerrar el <body> -->
+        <div id="debug-log" style="
+            margin: 20px auto; 
+            max-width: 600px; 
+            background: #222; 
+            color: #0f0; 
+            font-family: monospace; 
+            font-size: 10px; 
+            padding: 10px; 
+            text-align: left; 
+            border-radius: 5px; 
+            height: 100px; 
+            overflow-y: scroll;
+            display: block; 
+        ">--- DEBUG LOG ---<br></div>
+
     <script src="version.js"></script>
     <script src="datos.js"></script>
     <script src="app.js"></script>
@@ -147,21 +163,5 @@
             });
         }
     </script>
-
-    <!-- Añadir esto justo antes de cerrar el <body> -->
-    <div id="debug-log" style="
-        margin: 20px auto; 
-        max-width: 600px; 
-        background: #222; 
-        color: #0f0; 
-        font-family: monospace; 
-        font-size: 10px; 
-        padding: 10px; 
-        text-align: left; 
-        border-radius: 5px; 
-        height: 100px; 
-        overflow-y: scroll;
-        display: block; 
-    ">--- DEBUG LOG ---<br></div>
 </body>
 </html>
