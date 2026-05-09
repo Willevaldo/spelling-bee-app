@@ -2,19 +2,23 @@
 let indiceActual = 0;
 let escuchando = false; 
 let transcripcionAcumulada = "";
+// NUEVO: CONTROL DE PUNTAJE
+let puntaje = 0;
 
-// CAMBIO: CARGA DE SONIDOS DESDE CARPETA LOCAL PARA USO OFFLINE
+// Configuración de sonidos de retroalimentación
 const sonidoExito = new Audio('./sounds/exito.mp3');
 const sonidoError = new Audio('./sounds/error.mp3');
-
-// NUEVO: PRE-CARGA DE AUDIOS PARA EVITAR LATENCIA EN TABLETS
 sonidoExito.load();
 sonidoError.load();
+
+// MEZCLA ALEATORIA: DESORDENA EL BANCO DE PALABRAS AL INICIAR
+bancoDePalabras.sort(() => Math.random() - 0.5);
 
 // Configuración del motor de reconocimiento de voz
 const reconocimiento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 reconocimiento.lang = 'en-US';
 reconocimiento.continuous = true;
+// SE MANTIENE TRUE INTERNAMENTE PERO YA NO SE MUESTRA AL USUARIO
 reconocimiento.interimResults = true;
 
 // Referencias a los elementos de la interfaz gráfica
@@ -22,11 +26,12 @@ const btn = document.getElementById('accionBtn');
 const img = document.getElementById('pistaImagen');
 const txtEstado = document.getElementById('estado');
 const txtResultado = document.getElementById('resultado');
+const txtPuntaje = document.getElementById('puntaje');
 
 // Gestiona la reproducción de voz de la palabra actual
 function pronunciarPalabra() {
     if (indiceActual >= bancoDePalabras.length) {
-        txtEstado.innerText = "¡Felicidades! Completaste la lista.";
+        txtEstado.innerText = "¡Juego terminado!";
         btn.disabled = true;
         return;
     }
@@ -73,52 +78,79 @@ function finalizarYEvaluar() {
     }, 500);
 }
 
-// Procesa el audio capturado mientras el usuario sigue hablando
+// Procesa el audio capturado (MODIFICADO: YA NO MUESTRA EL TEXTO AL NIÑO)
 reconocimiento.onresult = (event) => {
-    let parcial = "";
     for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
             transcripcionAcumulada += event.results[i][0].transcript + " ";
-        } else {
-            parcial += event.results[i][0].transcript;
         }
     }
-    txtEstado.innerText = `Escuché: ${transcripcionAcumulada} ${parcial}`;
+    // COMENTADO O ELIMINADO PARA NO MOSTRAR EL DELETREO EN PANTALLA
+    // txtEstado.innerText = ... 
 };
 
-// Lógica de validación de deletreo con formato "Word-Spell-Word"
+// Lógica de validación de deletreo con sistema de ayuda y puntaje
 function evaluarDeletreo(transcript) {
     const palabraCorrecta = bancoDePalabras[indiceActual].palabra.toLowerCase();
     let piezas = transcript.toLowerCase().split(/\s+/);
 
-    if (piezas.length > 1 && piezas[0] === palabraCorrecta) {
-        piezas.shift(); 
-    }
-    if (piezas.length > 0 && piezas[piezas.length - 1] === palabraCorrecta) {
-        piezas.pop(); 
-    }
+    if (piezas.length > 1 && piezas[0] === palabraCorrecta) piezas.shift();
+    if (piezas.length > 0 && piezas[piezas.length - 1] === palabraCorrecta) piezas.pop();
 
     const deletreoFinal = piezas.join('');
 
     if (deletreoFinal === palabraCorrecta) {
+        // ACCION EN CASO DE EXITO
         txtResultado.innerText = "✅ ¡EXCELENTE!";
         txtResultado.style.color = "green";
-        // CAMBIO: REPRODUCCION DE SONIDO LOCAL DE EXITO
         sonidoExito.play();
+        
+        // ACTUALIZACION DE PUNTAJE
+        puntaje += 10;
+        txtPuntaje.innerText = puntaje;
+        
+        avanzarSiguiente();
     } else {
-        txtResultado.innerText = `❌ ERROR EN EL DELETREO`;
+        txtResultado.innerText = `❌ LA PALABRA ERA: ${palabraCorrecta.toUpperCase()}`;
         txtResultado.style.color = "red";
-        // CAMBIO: REPRODUCCION DE SONIDO LOCAL DE ERROR
         sonidoError.play();
-        txtEstado.innerText = `Dijiste "${deletreoFinal}" en lugar de "${palabraCorrecta}"`;
-    }
+        
+        btn.disabled = true;
+        btn.innerText = "MIRA Y ESCUCHA...";
 
+        // AYUDA AUDITIVA: DELETREAR LA PALABRA CORRECTA
+        const deletreoAyuda = new SpeechSynthesisUtterance();
+        
+        // CAMBIO: USAMOS COMA PARA FORZAR PAUSAS ENTRE LETRAS
+        deletreoAyuda.text = palabraCorrecta.split('').join(', '); 
+        
+        deletreoAyuda.lang = 'en-US';
+        
+        // CAMBIO: REDUCIMOS LA VELOCIDAD (Antes 0.6, ahora 0.4 o 0.3)
+        deletreoAyuda.rate = 0.4; 
+        
+        window.speechSynthesis.speak(deletreoAyuda);
+
+        // AJUSTE: AUMENTAMOS EL TIEMPO DE ESPERA SI LA PALABRA ES LARGA
+        // Calculamos 800ms por cada letra para que el niño termine de oír antes de seguir
+        const tiempoEspera = Math.max(3500, palabraCorrecta.length * 800);
+
+        setTimeout(() => {
+            btn.disabled = false;
+            avanzarSiguiente();
+        }, tiempoEspera);
+    }
+}
+
+// Gestiona el paso a la siguiente palabra o fin del juego
+function avanzarSiguiente() {
     indiceActual++;
     if (indiceActual < bancoDePalabras.length) {
         btn.innerText = "SIGUIENTE PALABRA";
     } else {
         btn.innerText = "🎉 JUEGO TERMINADO";
         btn.disabled = true;
+        txtEstado.innerText = `Puntaje Final: ${puntaje}`;
     }
 }
 
