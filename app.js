@@ -1,3 +1,4 @@
+//app.js
 // Variables de control
 let indiceActual = 0;
 
