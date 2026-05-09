@@ -1,16 +1,19 @@
-const CACHE_NAME = 'spelling-bee-v1';
+const CACHE_NAME = 'spelling-bee-v1.0'; // <--- Cambia este número (v1, v2, v3) cada vez que subas algo
 const assets = [
-  '/',
-  '/index.html',
-  '/app.js',
-  '/datos.js',
-  '/img/apple.jpg',
-  '/img/robot.jpg',
-  '/img/science.jpg'
+  './',
+  './index.html',
+  './app.js',
+  './datos.js',
+  './manifest.json',
+  // Añade aquí tus imágenes nuevas si quieres que funcionen offline
+  './img/apple.jpg',
+  './img/robot.jpg',
+  './img/science.jpg'
 ];
 
-// Instalar y guardar en caché
+// Instalación: Guarda los archivos en el caché
 self.addEventListener('install', event => {
+  self.skipWaiting(); // Fuerza al nuevo SW a tomar el control de inmediato
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(assets);
@@ -18,11 +21,20 @@ self.addEventListener('install', event => {
   );
 });
 
-// Responder desde caché si no hay internet
+// Activación: Borra cachés viejos
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      );
+    })
+  );
+});
+
+// Estrategia: Primero buscar en internet, si falla, usar el caché
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
-    })
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
