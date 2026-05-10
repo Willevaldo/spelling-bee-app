@@ -1,68 +1,108 @@
-// Configuración del motor de reconocimiento de voz para escritorio
-const reconocimiento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-reconocimiento.lang = 'en-US';
-reconocimiento.continuous = true;
-reconocimiento.interimResults = false; // PC no requiere procesar resultados intermedios
+/**
+ * Motor de Procesamiento Local con Whisper AI (PC)
+ * Basado en Transformers.js para ejecución en el navegador.
+ */
+let transcriber;
+let mediaRecorder;
+let chunks = [];
 
 /**
- * Activa el micrófono y actualiza el estado visual del botón
+ * Inicialización automática de la IA al cargar el script.
  */
-function iniciarGrabacion() {
-    escuchando = true;
-    listaLetrasConfirmadas = []; // Limpieza de la sesión actual
-    btn.innerText = "🛑 TOCAR AL TERMINAR";
-    btn.classList.add('btn-grabar');
-    
+async function initAI() {
     try {
-        reconocimiento.start();
-    } catch (e) {
-        console.log("Aviso: El reconocimiento de voz ya se encuentra activo.");
+        const aiStatus = document.getElementById('ai-status');
+        aiStatus.innerText = "Cargando cerebro de IA (Whisper)...";
+        
+        // Cargamos el pipeline de transcripción. 
+        // Usamos 'Xenova/whisper-tiny.en' por ser el más rápido (75MB aprox).
+        transcriber = await window.whisperPipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
+        
+        aiStatus.innerText = "IA Lista ✅";
+        btn.disabled = false;
+        btn.innerText = "REPRODUCIR PALABRA";
+        txtEstado.innerText = "Presiona el botón para iniciar";
+    } catch (err) {
+        console.error("Fallo al cargar IA:", err);
+        const aiStatus = document.getElementById('ai-status');
+        if (aiStatus) aiStatus.innerText = "Error cargando IA ❌";
     }
 }
 
 /**
- * Captura y almacena los resultados finales emitidos por el motor
+ * Inicia la captura de audio mediante MediaRecorder (Audio crudo).
  */
-reconocimiento.onresult = (event) => {
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-            const transcript = event.results[i][0].transcript.trim().toLowerCase();
-            listaLetrasConfirmadas.push(transcript);
-        }
+async function iniciarGrabacion() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        chunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) chunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            const blob = new Blob(chunks, { type: 'audio/webm' });
+            procesarAudioIA(blob);
+        };
+
+        escuchando = true;
+        btn.innerText = "🛑 TOCAR AL TERMINAR";
+        btn.classList.add('btn-grabar');
+        mediaRecorder.start();
+    } catch (err) {
+        console.error("Error micrófono:", err);
+        txtEstado.innerText = "Error: Acceso al micrófono denegado.";
     }
-    // Nota: No se actualiza la UI en tiempo real por requerimiento de diseño
-};
+}
 
 /**
- * Detiene la captura y envía la cadena acumulada a la lógica de evaluación del core.js
+ * Prepara el audio y ejecuta la transcripción con Whisper.
+ */
+async function procesarAudioIA(blob) {
+    txtEstado.innerText = "Procesando audio con IA...";
+    
+    // Whisper requiere audio a 16000Hz (Mono)
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    const audioData = audioBuffer.getChannelData(0); // Canal mono
+
+    // Transcripción local
+    const output = await transcriber(audioData, {
+        chunk_length_s: 30,
+        stride_length_s: 5,
+        language: 'english',
+        task: 'transcribe',
+        return_timestamps: false
+    });
+
+    // Enviamos el texto resultante a la lógica del core.js
+    evaluarDeletreo(output.text.trim());
+}
+
+/**
+ * Detiene el MediaRecorder para disparar el procesamiento.
  */
 function finalizarYEvaluar() {
-    escuchando = false;
-    reconocimiento.stop();
-    btn.classList.remove('btn-grabar');
-    btn.innerText = "PROCESANDO...";
-
-    // Pequeño delay para asegurar la recepción del último evento del motor
-    setTimeout(() => {
-        evaluarDeletreo(listaLetrasConfirmadas.join(" "));
-    }, 500);
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        escuchando = false;
+        btn.classList.remove('btn-grabar');
+        btn.innerText = "PROCESANDO...";
+    }
 }
 
-// Controlador de interacción para el botón principal
+// Controlador de eventos del botón principal
 btn.addEventListener('click', () => {
     if (!escuchando) {
         txtResultado.innerText = "";
-        pronunciarPalabra(); // Función definida en core.js
+        pronunciarPalabra();
     } else {
         finalizarYEvaluar();
     }
 });
 
-// Manejo de errores de hardware
-reconocimiento.onerror = (event) => {
-    if (event.error === 'no-speech') return;
-    escuchando = false;
-    btn.classList.remove('btn-grabar');
-    btn.innerText = "REINTENTAR";
-    txtEstado.innerText = "Error: " + event.error;
-};
+// Iniciamos la descarga del modelo al cargar el script
+initAI();

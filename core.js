@@ -1,6 +1,6 @@
-// 1. DICCIONARIO FONÉTICO: Corrige palabras que la tablet confunde con letras
-// Este mapa permite que sonidos que el motor traduce como palabras (ej. "see") 
-// se conviertan en la letra correspondiente ("c") antes de evaluar.
+// 1. DICCIONARIO FONÉTICO: Corrige palabras que la IA pueda confundir con letras individuales.
+// Incluso con Whisper, este mapa asegura que si la transcripción devuelve una palabra corta
+// que suena como una letra, la procesemos correctamente como un componente del deletreo.
 const mapaFonetico = {
     "see": "c", "sea": "c", "si": "c", "se": "c",
     "te": "t", "tea": "t", "tee": "t",
@@ -16,14 +16,14 @@ const mapaFonetico = {
 // Variables de control de estado y navegación
 let indiceActual = 0;
 let escuchando = false; 
-let transcripcionAcumulada = "";
+let transcripcionAcumulada = ""; // Se mantiene para compatibilidad con el flujo de datos
 let puntaje = 0;
 
 // Variables para el sistema de repaso de palabras fallidas
 let listaErrores = [];
 let modoRepaso = false;
 
-// Variables para el motor de captura (compartidas con app_pc/tablet)
+// Variables para el motor de captura (Ahora gestionadas por MediaRecorder en app_pc.js)
 let listaLetrasConfirmadas = [];
 let interimActual = ""; 
 
@@ -81,7 +81,6 @@ function generarMenu() {
  * Prepara el banco de palabras y cambia la vista hacia el juego
  */
 function cargarNivel(grado, test) {
-    // Vaciamos el banco actual respetando la referencia
     bancoDePalabras.length = 0; 
     
     if (test) {
@@ -92,10 +91,8 @@ function cargarNivel(grado, test) {
         }
     }
 
-    // Aleatorización de la lista
     bancoDePalabras.sort(() => Math.random() - 0.5);
 
-    // Cambio de vista
     menuUI.style.display = 'none';
     juegoUI.style.display = 'block';
     scoreUI.style.display = 'block';
@@ -107,26 +104,22 @@ function cargarNivel(grado, test) {
 function pronunciarPalabra() {
     if (indiceActual >= bancoDePalabras.length) return;
 
-    // Reseteo del botón de auditoría para la nueva palabra
     btnLog.disabled = false;
     btnLog.style.opacity = "1";
     btnLog.innerText = "📝 Registrar Error";
 
     let palabraObjetivo = bancoDePalabras[indiceActual].palabra;
-    
-    // Limpieza de paréntesis para la síntesis de voz
     const palabraParaHablar = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '').trim();
 
     const mensaje = new SpeechSynthesisUtterance(palabraParaHablar);
     mensaje.lang = 'en-US';
     mensaje.rate = 0.8; 
     
-    // Formateo del nombre de archivo para la imagen
     const nombreImagen = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '_').replace(/\s+/g, '_').replace(/__+/g, '_').trim('_');
     img.src = `./img/${nombreImagen}.jpg`;
     img.style.display = 'inline-block';
     
-    // UI Silenciosa: No se muestra lo que se escucha hasta el final
+    // UI Silenciosa: Whisper procesará al final, por lo que solo indicamos espera.
     txtEstado.innerText = "Escuchando...";
     
     window.speechSynthesis.speak(mensaje);
@@ -134,19 +127,25 @@ function pronunciarPalabra() {
 }
 
 /**
- * Lógica de validación con traducción fonética y revelación de la transcripción bruta
+ * Lógica de validación. Recibe el texto procesado por la IA tras finalizar la grabación.
+ * Limpia puntuación común que Whisper suele añadir y aplica el mapeo fonético.
  */
 function evaluarDeletreo(transcript) {
     ultimaTranscripcionBruta = transcript; 
     const objetoActual = bancoDePalabras[indiceActual];
     const palabraCorrecta = objetoActual.palabra.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
     
-    // MOMENTO DE VERDAD: Se revela la transcripción Raw sólo al terminar
+    // Mostramos la transcripción "Raw" recibida de la IA.
     txtEstado.innerHTML = `<span style="color: #666; font-size: 0.9em;">Raw: "${transcript}"</span>`;
 
-    // Procesamiento interno
-    let piezas = transcript.toLowerCase().split(/\s+/);
+    // Limpieza de transcripción: Whisper suele añadir puntos o comas.
+    let textoLimpio = transcript.toLowerCase().replace(/[.,?]/g, '');
+    let piezas = textoLimpio.split(/\s+/);
+    
+    // Aplicamos traducción fonética letra por letra
     let piezasTraducidas = piezas.map(p => mapaFonetico[p] || p);
+    
+    // Filtramos para quedarnos solo con letras sueltas (deletreo)
     let letrasDeletreadas = piezasTraducidas.filter(pieza => pieza.length === 1);
     const deletreoFinal = letrasDeletreadas.join('');
 
@@ -175,7 +174,6 @@ function evaluarDeletreo(transcript) {
         
         window.speechSynthesis.speak(deletreoAyuda);
 
-        // Tiempo de espera proporcional a la longitud de la palabra
         const tiempoEspera = Math.max(3500, palabraCorrecta.length * 800);
         setTimeout(() => {
             btn.disabled = false;
@@ -220,7 +218,6 @@ function activarModoRepaso() {
 
 // --- EVENTOS DE AUDITORÍA TÉCNICA (LOGS) ---
 
-// Registro de error sin bloqueo de pantalla (Feedback visual en botón)
 btnLog.onclick = () => {
     const palabraEsperada = bancoDePalabras[indiceActual - 1]?.palabra || "N/A";
     registroSesion.push({
@@ -229,13 +226,11 @@ btnLog.onclick = () => {
         timestamp: new Date().toLocaleTimeString()
     });
 
-    // Bloqueo estético del botón para indicar guardado
     btnLog.disabled = true;
     btnLog.style.opacity = "0.5";
     btnLog.innerText = "✅ Guardado";
 };
 
-// Exportación de registros al portapapeles
 btnExport.onclick = () => {
     if (registroSesion.length === 0) return;
     
@@ -248,7 +243,6 @@ btnExport.onclick = () => {
     });
 };
 
-// Inicialización de la interfaz
 window.addEventListener('load', () => {
     generarMenu(); 
     if (typeof APP_VERSION !== 'undefined') {
