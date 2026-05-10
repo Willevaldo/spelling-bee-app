@@ -7,100 +7,40 @@
     <title>Spelling Bee Trainer</title>
     
     <style>
-        /* Estilos Base */
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #e0f2f1; margin: 0; padding: 20px; }
         
-        /* Contenedores Principales */
         #menu-inicial, #canvas-app { 
-            background: white; 
-            border-radius: 20px; 
-            padding: 30px 20px; 
-            box-shadow: 0 8px 16px rgba(0,0,0,0.1); 
-            max-width: 600px; 
-            margin: 0 auto; 
+            background: white; border-radius: 20px; padding: 30px 20px; 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; 
         }
         
         h1 { color: #00796b; font-size: 2.5em; margin-top: 0; }
         p { color: #555; font-size: 1.2em; margin-bottom: 30px; }
 
-        /* Estilos del Menú Dinámico */
-        .contenedor-grado { 
-            background: #f8f9fa; 
-            border: 2px solid #e9ecef; 
-            border-radius: 15px; 
-            padding: 20px; 
-            margin-bottom: 25px; 
-        }
+        .contenedor-grado { background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 15px; padding: 20px; margin-bottom: 25px; }
+        .btn-grado-completo { background: #28a745; color: white; font-size: 20px; font-weight: bold; padding: 15px; width: 100%; border-radius: 12px; border: none; margin-bottom: 15px; cursor: pointer; }
         
-        .btn-grado-completo { 
-            background: #28a745; 
-            color: white; 
-            font-size: 20px; 
-            font-weight: bold; 
-            padding: 15px; 
-            width: 100%; 
-            border-radius: 12px; 
-            border: none; 
-            margin-bottom: 15px; 
-            cursor: pointer; 
-            box-shadow: 0 4px 6px rgba(40, 167, 69, 0.3);
-            transition: transform 0.1s, background 0.3s;
-        }
-        .btn-grado-completo:active { transform: scale(0.98); }
+        .contenedor-tests { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        .btn-test { background: #17a2b8; color: white; font-size: 16px; font-weight: bold; padding: 12px 20px; border-radius: 25px; border: none; cursor: pointer; flex-grow: 1; max-width: 150px; }
 
-        .contenedor-tests {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .btn-test { 
-            background: #17a2b8; 
-            color: white; 
-            font-size: 16px; 
-            font-weight: bold;
-            padding: 12px 20px; 
-            border-radius: 25px; 
-            border: none; 
-            cursor: pointer; 
-            box-shadow: 0 3px 5px rgba(23, 162, 184, 0.3);
-            transition: transform 0.1s, background 0.3s;
-            flex-grow: 1;
-            max-width: 150px;
-        }
-        .btn-test:active { transform: scale(0.95); }
-
-        /* Estilos del Juego */
         img { max-width: 70%; height: auto; border-radius: 15px; margin-bottom: 20px; display: none; border: 3px solid #eee; }
         
         .btn-principal { 
             width: 100%; max-width: 400px; padding: 25px; font-size: 24px; font-weight: bold;
             border: none; border-radius: 50px; background: #007bff; color: white; cursor: pointer; 
-            box-shadow: 0 6px 12px rgba(0, 123, 255, 0.3);
-            transition: background 0.3s, transform 0.1s;
+            box-shadow: 0 6px 12px rgba(0, 123, 255, 0.3); transition: background 0.3s, transform 0.1s;
         }
-        .btn-principal:active { transform: scale(0.97); }
-        .btn-grabar { background: #dc3545; box-shadow: 0 6px 12px rgba(220, 53, 69, 0.4); animation: latido 1.5s infinite; }
+        .btn-grabar { background: #dc3545; animation: latido 1.5s infinite; }
         
         #resultado { margin-top: 20px; font-size: 32px; font-weight: bold; min-height: 40px; }
         #estado { margin-bottom: 20px; color: #555; font-size: 1.1em; min-height: 25px; font-style: italic; }
         #score-container { font-size: 28px; font-weight: 900; margin-bottom: 15px; color: #ff9800; display: none; }
 
-        /* Estilos Auditoría Técnica */
         .contenedor-auditoria { margin-top: 25px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
         .btn-secundario { padding: 10px 15px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; transition: opacity 0.2s; }
-        .btn-secundario:active { opacity: 0.8; }
 
-        @keyframes latido {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-            100% { transform: scale(1); }
-        }
-
-        .btn-volver {
-            margin-top: 30px; background: none; border: none; color: #6c757d; font-size: 16px; text-decoration: underline; cursor: pointer; padding: 10px;
-        }
+        @keyframes latido { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+        .btn-volver { margin-top: 30px; background: none; border: none; color: #6c757d; font-size: 16px; text-decoration: underline; cursor: pointer; padding: 10px; }
     </style>
 </head>
 <body>
@@ -114,13 +54,9 @@
     </div>
 
     <div id="canvas-app" style="display: none;">
-        <div id="score-container">
-            ⭐ Puntaje: <span id="puntaje">0</span>
-        </div>
-        
+        <div id="score-container">⭐ Puntaje: <span id="puntaje">0</span></div>
         <img id="pistaImagen" src="" alt="Pista visual">
         <div id="estado">Presiona el botón para iniciar</div>
-        
         <button id="accionBtn" class="btn-principal">REPRODUCIR PALABRA</button>
         <div id="resultado"></div>
 
@@ -135,36 +71,12 @@
     <script src="version.js"></script>
     <script src="datos.js"></script>
     <script src="core.js"></script>
-
     <script>
         const esTablet = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
         const motorScript = document.createElement('script');
-        
-        if (esTablet) {
-            motorScript.src = "app_tablet.js";
-            console.log("Sistema: Dispositivo táctil detectado. Cargando motor de Tablet.");
-        } else {
-            motorScript.src = "app_pc.js";
-            console.log("Sistema: Computadora detectada. Cargando motor de PC.");
-        }
-        
+        motorScript.src = esTablet ? "app_tablet.js" : "app_pc.js";
         document.body.appendChild(motorScript);
-    </script>
-
-    <script>
-        const isLocalhost = Boolean(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168.'));
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                if (isLocalhost) {
-                    console.log('Modo Desarrollo: PWA desactivada.');
-                    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
-                } else {
-                    navigator.serviceWorker.register('sw.js').catch(err => console.error('Error en PWA', err));
-                }
-            });
-        }
     </script>
 </body>
 </html>

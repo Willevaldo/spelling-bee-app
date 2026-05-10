@@ -1,4 +1,6 @@
 // 1. DICCIONARIO FONÉTICO: Corrige palabras que la tablet confunde con letras
+// Este mapa permite que sonidos que el motor traduce como palabras (ej. "see") 
+// se conviertan en la letra correspondiente ("c") antes de evaluar.
 const mapaFonetico = {
     "see": "c", "sea": "c", "si": "c", "se": "c",
     "te": "t", "tea": "t", "tee": "t",
@@ -16,12 +18,16 @@ let indiceActual = 0;
 let escuchando = false; 
 let transcripcionAcumulada = "";
 let puntaje = 0;
+
+// Variables para el sistema de repaso de palabras fallidas
 let listaErrores = [];
 let modoRepaso = false;
+
+// Variables para el motor de captura (compartidas con app_pc/tablet)
 let listaLetrasConfirmadas = [];
 let interimActual = ""; 
 
-// Variables para auditoría técnica
+// Variables para auditoría técnica y análisis de fallos
 let registroSesion = []; 
 let ultimaTranscripcionBruta = ""; 
 
@@ -35,13 +41,15 @@ const menuUI = document.getElementById('menu-inicial');
 const juegoUI = document.getElementById('canvas-app');
 const scoreUI = document.getElementById('score-container');
 const listaGradosUI = document.getElementById('lista-grados');
+const btnLog = document.getElementById('btnLog');
+const btnExport = document.getElementById('btnExport');
 
-// Sonidos
+// Configuración de sonidos de retroalimentación
 const sonidoExito = new Audio('./sounds/exito.mp3');
 const sonidoError = new Audio('./sounds/error.mp3');
 
 /**
- * Genera el menú de selección basado en la biblioteca de palabras.
+ * Genera el menú de selección de niveles basado en bibliotecaPalabras (datos.js)
  */
 function generarMenu() {
     listaGradosUI.innerHTML = '';
@@ -70,10 +78,12 @@ function generarMenu() {
 }
 
 /**
- * Filtra y aleatoriza el banco de palabras según la selección.
+ * Prepara el banco de palabras y cambia la vista hacia el juego
  */
 function cargarNivel(grado, test) {
+    // Vaciamos el banco actual respetando la referencia
     bancoDePalabras.length = 0; 
+    
     if (test) {
         bancoDePalabras.push(...bibliotecaPalabras[grado][test]);
     } else {
@@ -81,27 +91,42 @@ function cargarNivel(grado, test) {
             bancoDePalabras.push(...bibliotecaPalabras[grado][t]);
         }
     }
+
+    // Aleatorización de la lista
     bancoDePalabras.sort(() => Math.random() - 0.5);
+
+    // Cambio de vista
     menuUI.style.display = 'none';
     juegoUI.style.display = 'block';
     scoreUI.style.display = 'block';
 }
 
 /**
- * Gestiona la salida de audio y carga de imagen de la palabra actual.
+ * Gestiona la síntesis de voz, carga de imagen y reseteo de botones de auditoría
  */
 function pronunciarPalabra() {
     if (indiceActual >= bancoDePalabras.length) return;
+
+    // Reseteo del botón de auditoría para la nueva palabra
+    btnLog.disabled = false;
+    btnLog.style.opacity = "1";
+    btnLog.innerText = "📝 Registrar Error";
+
     let palabraObjetivo = bancoDePalabras[indiceActual].palabra;
-    const palabraParaHablar = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '').trim();
     
+    // Limpieza de paréntesis para la síntesis de voz
+    const palabraParaHablar = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '').trim();
+
     const mensaje = new SpeechSynthesisUtterance(palabraParaHablar);
     mensaje.lang = 'en-US';
     mensaje.rate = 0.8; 
     
+    // Formateo del nombre de archivo para la imagen
     const nombreImagen = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '_').replace(/\s+/g, '_').replace(/__+/g, '_').trim('_');
     img.src = `./img/${nombreImagen}.jpg`;
     img.style.display = 'inline-block';
+    
+    // UI Silenciosa: No se muestra lo que se escucha hasta el final
     txtEstado.innerText = "Escuchando...";
     
     window.speechSynthesis.speak(mensaje);
@@ -109,22 +134,20 @@ function pronunciarPalabra() {
 }
 
 /**
- * Valida el deletreo comparando la transcripción bruta con el objetivo.
- * Aplica el mapeo fonético y filtrado de caracteres individuales.
+ * Lógica de validación con traducción fonética y revelación de la transcripción bruta
  */
 function evaluarDeletreo(transcript) {
     ultimaTranscripcionBruta = transcript; 
     const objetoActual = bancoDePalabras[indiceActual];
     const palabraCorrecta = objetoActual.palabra.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
     
-    // Muestra la transcripción bruta capturada
-    txtEstado.innerHTML = `<span style="color: #666; font-size: 0.9em;">Escuchado: "${transcript}"</span>`;
+    // MOMENTO DE VERDAD: Se revela la transcripción Raw sólo al terminar
+    txtEstado.innerHTML = `<span style="color: #666; font-size: 0.9em;">Raw: "${transcript}"</span>`;
 
-    // Procesamiento fonético
+    // Procesamiento interno
     let piezas = transcript.toLowerCase().split(/\s+/);
     let piezasTraducidas = piezas.map(p => mapaFonetico[p] || p);
     let letrasDeletreadas = piezasTraducidas.filter(pieza => pieza.length === 1);
-    
     const deletreoFinal = letrasDeletreadas.join('');
 
     if (deletreoFinal === palabraCorrecta) {
@@ -135,18 +158,24 @@ function evaluarDeletreo(transcript) {
         txtPuntaje.innerText = puntaje;
         avanzarSiguiente();
     } else {
-        if (!modoRepaso) listaErrores.push(objetoActual);
+        if (!modoRepaso) {
+            listaErrores.push(objetoActual);
+        }
+
         txtResultado.innerText = `❌ LA PALABRA ERA: ${palabraCorrecta.toUpperCase()}`;
         txtResultado.style.color = "red";
         sonidoError.play();
+        
         btn.disabled = true;
         btn.innerText = "MIRA Y ESCUCHA...";
-        
+
         const deletreoAyuda = new SpeechSynthesisUtterance(palabraCorrecta.split('').join(', '));
         deletreoAyuda.lang = 'en-US';
         deletreoAyuda.rate = 0.4; 
-        window.speechSynthesis.speak(deletreoAyuda);
         
+        window.speechSynthesis.speak(deletreoAyuda);
+
+        // Tiempo de espera proporcional a la longitud de la palabra
         const tiempoEspera = Math.max(3500, palabraCorrecta.length * 800);
         setTimeout(() => {
             btn.disabled = false;
@@ -156,10 +185,11 @@ function evaluarDeletreo(transcript) {
 }
 
 /**
- * Gestiona la transición a la siguiente palabra o al modo de repaso.
+ * Controla el avance del índice o activa la fase de repaso
  */
 function avanzarSiguiente() {
     indiceActual++;
+
     if (indiceActual < bancoDePalabras.length) {
         btn.innerText = modoRepaso ? "SIGUIENTE (REPASO)" : "SIGUIENTE PALABRA";
     } else {
@@ -175,7 +205,7 @@ function avanzarSiguiente() {
 }
 
 /**
- * Activa la fase de repaso para palabras fallidas.
+ * Configura el banco para trabajar sólo con los errores cometidos
  */
 function activarModoRepaso() {
     modoRepaso = true;
@@ -183,35 +213,42 @@ function activarModoRepaso() {
     bancoDePalabras.push(...listaErrores);
     bancoDePalabras.sort(() => Math.random() - 0.5);
     indiceActual = 0;
+    
     txtEstado.innerText = "¡VAMOS A REPASAR LAS QUE FALLARON!";
     btn.innerText = "INICIAR REPASO";
 }
 
-// --- EVENTOS DE AUDITORÍA TÉCNICA ---
+// --- EVENTOS DE AUDITORÍA TÉCNICA (LOGS) ---
 
-document.getElementById('btnLog').onclick = () => {
+// Registro de error sin bloqueo de pantalla (Feedback visual en botón)
+btnLog.onclick = () => {
     const palabraEsperada = bancoDePalabras[indiceActual - 1]?.palabra || "N/A";
-    const entrada = {
+    registroSesion.push({
         target: palabraEsperada,
         heard: ultimaTranscripcionBruta,
         timestamp: new Date().toLocaleTimeString()
-    };
-    registroSesion.push(entrada);
-    alert(`Registrado: "${palabraEsperada}" -> "${ultimaTranscripcionBruta}"`);
+    });
+
+    // Bloqueo estético del botón para indicar guardado
+    btnLog.disabled = true;
+    btnLog.style.opacity = "0.5";
+    btnLog.innerText = "✅ Guardado";
 };
 
-document.getElementById('btnExport').onclick = () => {
-    if (registroSesion.length === 0) return alert("No hay registros en el log aún.");
+// Exportación de registros al portapapeles
+btnExport.onclick = () => {
+    if (registroSesion.length === 0) return;
     
     const textoLog = registroSesion.map(e => `[${e.timestamp}] PALABRA: ${e.target} | ESCUCHÓ: "${e.heard}"`).join('\n');
     
     navigator.clipboard.writeText(textoLog).then(() => {
-        alert("Reporte copiado al portapapeles.");
+        const originalText = btnExport.innerText;
+        btnExport.innerText = "📋 ¡Copiado!";
+        setTimeout(() => btnExport.innerText = originalText, 2000);
     });
 };
 
-// --- INICIALIZACIÓN ---
-
+// Inicialización de la interfaz
 window.addEventListener('load', () => {
     generarMenu(); 
     if (typeof APP_VERSION !== 'undefined') {
