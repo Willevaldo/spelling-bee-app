@@ -1,4 +1,4 @@
-// VARIABLES GLOBALES COMPARTIDAS
+// VARIABLES COMPARTIDAS
 let indiceActual = 0;
 let escuchando = false; 
 let puntaje = 0;
@@ -21,7 +21,6 @@ const listaGradosUI = document.getElementById('lista-grados');
 const sonidoExito = new Audio('./sounds/exito.mp3');
 const sonidoError = new Audio('./sounds/error.mp3');
 
-// LÓGICA DE JUEGO (Menú, Niveles, Pronunciación)
 function generarMenu() {
     listaGradosUI.innerHTML = '';
     for (let grado in bibliotecaPalabras) {
@@ -58,19 +57,35 @@ function cargarNivel(grado, test) {
     scoreUI.style.display = 'block';
 }
 
-function pronunciarPalabra() {
-    if (indiceActual >= bancoDePalabras.length) return;
-    let palabra = bancoDePalabras[indiceActual].palabra;
-    const hablar = palabra.replace(/\s*\(.*?\)\s*/g, '').trim();
-    const mensaje = new SpeechSynthesisUtterance(hablar);
-    mensaje.lang = 'en-US';
-    mensaje.rate = 0.8; 
-    const imgFile = palabra.replace(/\s*\(.*?\)\s*/g, '_').replace(/\s+/g, '_').trim('_');
-    img.src = `./img/${imgFile}.jpg`;
-    img.style.display = 'inline-block';
-    txtEstado.innerText = "Preparando micrófono...";
-    window.speechSynthesis.speak(mensaje);
-    mensaje.onend = () => iniciarGrabacion();
+function evaluarDeletreo(transcript) {
+    const objetoActual = bancoDePalabras[indiceActual];
+    const palabraCorrecta = objetoActual.palabra.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
+    
+    let piezas = transcript.toLowerCase().split(/\s+/);
+    let letras = piezas.filter(p => p.length === 1);
+    const deletreoFinal = letras.join('');
+
+    txtEstado.innerText = `Escuché: "${letras.join(' ').toUpperCase()}"`;
+
+    if (deletreoFinal === palabraCorrecta) {
+        txtResultado.innerText = "✅ ¡EXCELENTE!";
+        txtResultado.style.color = "green";
+        sonidoExito.play();
+        puntaje += 10;
+        txtPuntaje.innerText = puntaje;
+        avanzarSiguiente();
+    } else {
+        if (!modoRepaso) listaErrores.push(objetoActual);
+        txtResultado.innerText = `❌ LA PALABRA ERA: ${palabraCorrecta.toUpperCase()}`;
+        txtResultado.style.color = "red";
+        sonidoError.play();
+        btn.disabled = true;
+        const msg = new SpeechSynthesisUtterance(palabraCorrecta.split('').join(', '));
+        msg.lang = 'en-US';
+        msg.rate = 0.4;
+        window.speechSynthesis.speak(msg);
+        setTimeout(() => { btn.disabled = false; avanzarSiguiente(); }, 4000);
+    }
 }
 
 function avanzarSiguiente() {
@@ -97,7 +112,6 @@ function activarModoRepaso() {
     btn.innerText = "INICIAR REPASO";
 }
 
-// INICIALIZACIÓN
 window.addEventListener('load', () => {
     generarMenu();
     if (typeof APP_VERSION !== 'undefined') document.getElementById('version-display').innerText = `Versión: ${APP_VERSION}`;

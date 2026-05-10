@@ -28,6 +28,10 @@ function finalizarYEvaluar() {
 }
 
 btn.addEventListener('click', () => {
-    if (!escuchando) { txtResultado.innerText = ""; pronunciarPalabra(); }
-    else finalizarYEvaluar();
+    if (!escuchando) {
+        txtResultado.innerText = "";
+        pronunciarPalabra();
+    } else {
+        finalizarYEvaluar();
+    }
 });
