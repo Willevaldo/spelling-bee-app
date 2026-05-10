@@ -87,6 +87,11 @@
         #estado { margin-bottom: 20px; color: #555; font-size: 1.1em; min-height: 25px; font-style: italic; }
         #score-container { font-size: 28px; font-weight: 900; margin-bottom: 15px; color: #ff9800; display: none; }
 
+        /* Estilos Auditoría Técnica */
+        .contenedor-auditoria { margin-top: 25px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .btn-secundario { padding: 10px 15px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; transition: opacity 0.2s; }
+        .btn-secundario:active { opacity: 0.8; }
+
         @keyframes latido {
             0% { transform: scale(1); }
             50% { transform: scale(1.02); }
@@ -118,6 +123,11 @@
         
         <button id="accionBtn" class="btn-principal">REPRODUCIR PALABRA</button>
         <div id="resultado"></div>
+
+        <div class="contenedor-auditoria">
+            <button id="btnLog" class="btn-secundario" style="background: #6f42c1; color: white;">📝 Registrar Error</button>
+            <button id="btnExport" class="btn-secundario" style="background: #343a40; color: white;">📋 Copiar Reporte</button>
+        </div>
         
         <button class="btn-volver" onclick="location.reload()">⬅️ Volver al menú</button>
     </div>
