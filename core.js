@@ -1,12 +1,27 @@
-// VARIABLES COMPARTIDAS
+// 1. DICCIONARIO FONÉTICO: Corrige palabras que la tablet confunde con letras
+const mapaFonetico = {
+    "see": "c", "sea": "c", "si": "c", "se": "c",
+    "te": "t", "tea": "t", "tee": "t",
+    "eye": "i", "i": "i",
+    "hay": "a", "ay": "a", "a": "a",
+    "be": "b", "bee": "b",
+    "pea": "p", "pee": "p",
+    "you": "u", "are": "r", "why": "y", "oh": "o",
+    "kay": "k", "el": "l", "and": "n", "em": "m",
+    "de": "d", "day": "d", "gee": "g", "jay": "j"
+};
+
+// Variables de control de estado y navegación
 let indiceActual = 0;
 let escuchando = false; 
+let transcripcionAcumulada = "";
 let puntaje = 0;
 let listaErrores = [];
 let modoRepaso = false;
 let listaLetrasConfirmadas = [];
+let interimActual = ""; 
 
-// REFERENCIAS UI
+// Referencias a los elementos de la interfaz gráfica
 const btn = document.getElementById('accionBtn');
 const img = document.getElementById('pistaImagen');
 const txtEstado = document.getElementById('estado');
@@ -17,7 +32,7 @@ const juegoUI = document.getElementById('canvas-app');
 const scoreUI = document.getElementById('score-container');
 const listaGradosUI = document.getElementById('lista-grados');
 
-// SONIDOS
+// Sonidos
 const sonidoExito = new Audio('./sounds/exito.mp3');
 const sonidoError = new Audio('./sounds/error.mp3');
 
@@ -26,11 +41,11 @@ function generarMenu() {
     for (let grado in bibliotecaPalabras) {
         const divGrado = document.createElement('div');
         divGrado.className = 'contenedor-grado';
-        const btnTodo = document.createElement('button');
-        btnTodo.className = 'btn-grado-completo';
-        btnTodo.innerText = `▶️ Practicar Todo ${grado}`;
-        btnTodo.onclick = () => cargarNivel(grado, null);
-        divGrado.appendChild(btnTodo);
+        const btnTodoGrado = document.createElement('button');
+        btnTodoGrado.className = 'btn-grado-completo';
+        btnTodoGrado.innerText = `▶️ Practicar Todo ${grado}`;
+        btnTodoGrado.onclick = () => cargarNivel(grado, null);
+        divGrado.appendChild(btnTodoGrado);
         const divTests = document.createElement('div');
         divTests.className = 'contenedor-tests';
         for (let test in bibliotecaPalabras[grado]) {
@@ -47,9 +62,12 @@ function generarMenu() {
 
 function cargarNivel(grado, test) {
     bancoDePalabras.length = 0; 
-    if (test) bancoDePalabras.push(...bibliotecaPalabras[grado][test]);
-    else {
-        for (let t in bibliotecaPalabras[grado]) bancoDePalabras.push(...bibliotecaPalabras[grado][t]);
+    if (test) {
+        bancoDePalabras.push(...bibliotecaPalabras[grado][test]);
+    } else {
+        for (let t in bibliotecaPalabras[grado]) {
+            bancoDePalabras.push(...bibliotecaPalabras[grado][t]);
+        }
     }
     bancoDePalabras.sort(() => Math.random() - 0.5);
     menuUI.style.display = 'none';
@@ -57,15 +75,36 @@ function cargarNivel(grado, test) {
     scoreUI.style.display = 'block';
 }
 
+function pronunciarPalabra() {
+    if (indiceActual >= bancoDePalabras.length) return;
+    let palabraObjetivo = bancoDePalabras[indiceActual].palabra;
+    const palabraParaHablar = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '').trim();
+    const mensaje = new SpeechSynthesisUtterance(palabraParaHablar);
+    mensaje.lang = 'en-US';
+    mensaje.rate = 0.8; 
+    const nombreImagen = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '_').replace(/\s+/g, '_').replace(/__+/g, '_').trim('_');
+    img.src = `./img/${nombreImagen}.jpg`;
+    img.style.display = 'inline-block';
+    txtEstado.innerText = "Escuchando...";
+    window.speechSynthesis.speak(mensaje);
+    mensaje.onend = () => iniciarGrabacion();
+}
+
+// Lógica de validación (Recibe el texto final de app_pc o app_tablet)
 function evaluarDeletreo(transcript) {
     const objetoActual = bancoDePalabras[indiceActual];
     const palabraCorrecta = objetoActual.palabra.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
-    
     let piezas = transcript.toLowerCase().split(/\s+/);
-    let letras = piezas.filter(p => p.length === 1);
-    const deletreoFinal = letras.join('');
-
-    txtEstado.innerText = `Escuché: "${letras.join(' ').toUpperCase()}"`;
+    let piezasTraducidas = piezas.map(p => mapaFonetico[p] || p);
+    let letrasDeletreadas = piezasTraducidas.filter(pieza => pieza.length === 1);
+    const deletreoFinal = letrasDeletreadas.join('');
+    const deletreoVisible = letrasDeletreadas.join(' ').toUpperCase();
+    
+    if (deletreoFinal === "") {
+         txtEstado.innerText = `No escuché el deletreo claro.`;
+    } else {
+         txtEstado.innerText = `Escuché: "${deletreoVisible}"`;
+    }
 
     if (deletreoFinal === palabraCorrecta) {
         txtResultado.innerText = "✅ ¡EXCELENTE!";
@@ -80,11 +119,16 @@ function evaluarDeletreo(transcript) {
         txtResultado.style.color = "red";
         sonidoError.play();
         btn.disabled = true;
-        const msg = new SpeechSynthesisUtterance(palabraCorrecta.split('').join(', '));
-        msg.lang = 'en-US';
-        msg.rate = 0.4;
-        window.speechSynthesis.speak(msg);
-        setTimeout(() => { btn.disabled = false; avanzarSiguiente(); }, 4000);
+        btn.innerText = "MIRA Y ESCUCHA...";
+        const deletreoAyuda = new SpeechSynthesisUtterance(palabraCorrecta.split('').join(', '));
+        deletreoAyuda.lang = 'en-US';
+        deletreoAyuda.rate = 0.4; 
+        window.speechSynthesis.speak(deletreoAyuda);
+        const tiempoEspera = Math.max(3500, palabraCorrecta.length * 800);
+        setTimeout(() => {
+            btn.disabled = false;
+            avanzarSiguiente();
+        }, tiempoEspera);
     }
 }
 
@@ -93,10 +137,12 @@ function avanzarSiguiente() {
     if (indiceActual < bancoDePalabras.length) {
         btn.innerText = modoRepaso ? "SIGUIENTE (REPASO)" : "SIGUIENTE PALABRA";
     } else {
-        if (!modoRepaso && listaErrores.length > 0) activarModoRepaso();
-        else {
+        if (!modoRepaso && listaErrores.length > 0) {
+            activarModoRepaso();
+        } else {
             btn.innerText = "🎉 JUEGO TERMINADO";
             btn.disabled = true;
+            txtEstado.innerText = `Puntaje Final: ${puntaje}`;
             img.style.display = 'none';
         }
     }
@@ -108,11 +154,13 @@ function activarModoRepaso() {
     bancoDePalabras.push(...listaErrores);
     bancoDePalabras.sort(() => Math.random() - 0.5);
     indiceActual = 0;
-    txtEstado.innerText = "¡VAMOS A REPASAR!";
+    txtEstado.innerText = "¡VAMOS A REPASAR LAS QUE FALLARON!";
     btn.innerText = "INICIAR REPASO";
 }
 
 window.addEventListener('load', () => {
-    generarMenu();
-    if (typeof APP_VERSION !== 'undefined') document.getElementById('version-display').innerText = `Versión: ${APP_VERSION}`;
+    generarMenu(); 
+    if (typeof APP_VERSION !== 'undefined') {
+        document.getElementById('version-display').innerText = `Versión: ${APP_VERSION}`;
+    }
 });

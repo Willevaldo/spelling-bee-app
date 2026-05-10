@@ -6,7 +6,7 @@ reconocimiento.interimResults = false;
 function iniciarGrabacion() {
     escuchando = true;
     listaLetrasConfirmadas = [];
-    btn.innerText = "🛑 DETENER";
+    btn.innerText = "🛑 TOCAR AL TERMINAR";
     btn.classList.add('btn-grabar');
     reconocimiento.start();
 }
@@ -17,14 +17,18 @@ reconocimiento.onresult = (event) => {
             listaLetrasConfirmadas.push(event.results[i][0].transcript.trim().toLowerCase());
         }
     }
-    txtEstado.innerText = `Escuchando: ${listaLetrasConfirmadas.join(" ").toUpperCase()}`;
+    const visual = listaLetrasConfirmadas.join(" ").toUpperCase();
+    txtEstado.innerText = `Escuchando: ${visual}`;
 };
 
 function finalizarYEvaluar() {
     escuchando = false;
     reconocimiento.stop();
     btn.classList.remove('btn-grabar');
-    evaluarDeletreo(listaLetrasConfirmadas.join(" "));
+    btn.innerText = "PROCESANDO...";
+    setTimeout(() => {
+        evaluarDeletreo(listaLetrasConfirmadas.join(" "));
+    }, 500);
 }
 
 btn.addEventListener('click', () => {
