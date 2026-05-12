@@ -74,9 +74,13 @@
 
     <script type="module">
         import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
-        // Hacemos que la librería sea accesible para app_pc.js
+        
+        // CONFIGURACIÓN CRUCIAL:
+        env.allowLocalModels = false; // No busques en mi PC/Servidor
+        env.useBrowserCache = true;   // Usa el caché del navegador para no descargar siempre
+        
         window.whisperPipeline = pipeline;
-        window.whisperEnv = env;
+        window.dispatchEvent(new Event('IA_Library_Ready'));
     </script>
 
     <script src="version.js"></script>

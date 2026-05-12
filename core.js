@@ -1,6 +1,4 @@
 // 1. DICCIONARIO FONÉTICO: Corrige palabras que la IA pueda confundir con letras individuales.
-// Incluso con Whisper, este mapa asegura que si la transcripción devuelve una palabra corta
-// que suena como una letra, la procesemos correctamente como un componente del deletreo.
 const mapaFonetico = {
     "see": "c", "sea": "c", "si": "c", "se": "c",
     "te": "t", "tea": "t", "tee": "t",
@@ -16,14 +14,14 @@ const mapaFonetico = {
 // Variables de control de estado y navegación
 let indiceActual = 0;
 let escuchando = false; 
-let transcripcionAcumulada = ""; // Se mantiene para compatibilidad con el flujo de datos
+let transcripcionAcumulada = ""; 
 let puntaje = 0;
 
 // Variables para el sistema de repaso de palabras fallidas
 let listaErrores = [];
 let modoRepaso = false;
 
-// Variables para el motor de captura (Ahora gestionadas por MediaRecorder en app_pc.js)
+// Variables para el motor de captura
 let listaLetrasConfirmadas = [];
 let interimActual = ""; 
 
@@ -119,7 +117,6 @@ function pronunciarPalabra() {
     img.src = `./img/${nombreImagen}.jpg`;
     img.style.display = 'inline-block';
     
-    // UI Silenciosa: Whisper procesará al final, por lo que solo indicamos espera.
     txtEstado.innerText = "Escuchando...";
     
     window.speechSynthesis.speak(mensaje);
@@ -127,25 +124,27 @@ function pronunciarPalabra() {
 }
 
 /**
- * Lógica de validación. Recibe el texto procesado por la IA tras finalizar la grabación.
- * Limpia puntuación común que Whisper suele añadir y aplica el mapeo fonético.
+ * Lógica de validación. 
+ * CAMBIO: Ahora limpia guiones y guiones bajos para procesar deletreos unidos.
  */
 function evaluarDeletreo(transcript) {
     ultimaTranscripcionBruta = transcript; 
     const objetoActual = bancoDePalabras[indiceActual];
     const palabraCorrecta = objetoActual.palabra.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
     
-    // Mostramos la transcripción "Raw" recibida de la IA.
+    // Revelamos la transcripción Raw
     txtEstado.innerHTML = `<span style="color: #666; font-size: 0.9em;">Raw: "${transcript}"</span>`;
 
-    // Limpieza de transcripción: Whisper suele añadir puntos o comas.
-    let textoLimpio = transcript.toLowerCase().replace(/[.,?]/g, '');
-    let piezas = textoLimpio.split(/\s+/);
+    // LIMPIEZA: Reemplazamos guiones, guiones bajos, puntos y comas por espacios.
+    let textoLimpio = transcript.toLowerCase().replace(/[.,?_\-]/g, ' ');
     
-    // Aplicamos traducción fonética letra por letra
+    // Dividimos por uno o más espacios
+    let piezas = textoLimpio.trim().split(/\s+/);
+    
+    // Traducimos fonética
     let piezasTraducidas = piezas.map(p => mapaFonetico[p] || p);
     
-    // Filtramos para quedarnos solo con letras sueltas (deletreo)
+    // Filtramos letras individuales
     let letrasDeletreadas = piezasTraducidas.filter(pieza => pieza.length === 1);
     const deletreoFinal = letrasDeletreadas.join('');
 
@@ -243,6 +242,7 @@ btnExport.onclick = () => {
     });
 };
 
+// Inicialización de la interfaz
 window.addEventListener('load', () => {
     generarMenu(); 
     if (typeof APP_VERSION !== 'undefined') {
