@@ -1,251 +1,297 @@
-// 1. DICCIONARIO FONÉTICO: Corrige palabras que la IA pueda confundir con letras individuales.
-const mapaFonetico = {
-    "see": "c", "sea": "c", "si": "c", "se": "c",
-    "te": "t", "tea": "t", "tee": "t",
-    "eye": "i", "i": "i",
-    "hay": "a", "ay": "a", "a": "a",
-    "be": "b", "bee": "b",
-    "pea": "p", "pee": "p",
-    "you": "u", "are": "r", "why": "y", "oh": "o",
-    "kay": "k", "el": "l", "and": "n", "em": "m",
-    "de": "d", "day": "d", "gee": "g", "jay": "j"
+/**
+ * CORE.JS - SPELLING BEE TRAINER v2.0.3
+ * Versión: Dataset Builder (Hands-Free)
+ * 
+ * Cambios realizados:
+ * - Se corrigió guardarClipLocalmente para asegurar compatibilidad con el navegador.
+ * - Se vinculó el evento click al botón de rescate (UI.btnRescate).
+ * - Se mantuvo intacta la lógica de estabilidad v2.0.2.
+ */
+
+// --- 1. VARIABLES DE ESTADO ---
+let usuarioActual = "";
+let modoJuego = ""; 
+let nivelEscritura = 0; 
+let indiceActual = 0;
+let puntaje = 0;
+let listaErrores = [];
+let ultimoAudioBlob = null;
+
+// --- 2. REFERENCIAS UI ---
+const pantallas = {
+    perfil: document.getElementById('pantalla-perfil'),
+    menu: document.getElementById('menu-inicial'),
+    modo: document.getElementById('selector-modo'),
+    dificultad: document.getElementById('selector-dificultad-escritura'),
+    app: document.getElementById('canvas-app')
 };
 
-// Variables de control de estado y navegación
-let indiceActual = 0;
-let escuchando = false; 
-let transcripcionAcumulada = ""; 
-let puntaje = 0;
+const UI = {
+    nombreInput: document.getElementById('input-nombre'),
+    btnEntrar: document.getElementById('btn-entrar'),
+    listaGrados: document.getElementById('lista-grados'),
+    imagen: document.getElementById('pistaImagen'),
+    estado: document.getElementById('estado'),
+    resultado: document.getElementById('resultado'),
+    btnAccion: document.getElementById('accionBtn'),
+    inputEscritura: document.getElementById('input-escritura'),
+    contenedorLetras: document.getElementById('contenedor-letras-disponibles'),
+    btnRescate: document.getElementById('btn-deletré-bien'),
+    txtPuntaje: document.getElementById('puntaje')
+};
 
-// Variables para el sistema de repaso de palabras fallidas
-let listaErrores = [];
-let modoRepaso = false;
+window.mapaFonetico = {
+    "see": "c", "sea": "c", "si": "c", "eye": "i", "hay": "a", "ay": "a",
+    "be": "b", "bee": "b", "pea": "p", "you": "u", "are": "r", "why": "y",
+    "oh": "o", "and": "n", "de": "d", "day": "d", "gee": "g", "jay": "j"
+};
 
-// Variables para el motor de captura
-let listaLetrasConfirmadas = [];
-let interimActual = ""; 
+// --- 3. FLUJO DE INICIO ---
 
-// Variables para auditoría técnica y análisis de fallos
-let registroSesion = []; 
-let ultimaTranscripcionBruta = ""; 
-
-// Referencias a los elementos de la interfaz gráfica
-const btn = document.getElementById('accionBtn');
-const img = document.getElementById('pistaImagen');
-const txtEstado = document.getElementById('estado');
-const txtResultado = document.getElementById('resultado');
-const txtPuntaje = document.getElementById('puntaje');
-const menuUI = document.getElementById('menu-inicial');
-const juegoUI = document.getElementById('canvas-app');
-const scoreUI = document.getElementById('score-container');
-const listaGradosUI = document.getElementById('lista-grados');
-const btnLog = document.getElementById('btnLog');
-const btnExport = document.getElementById('btnExport');
-
-// Configuración de sonidos de retroalimentación
-const sonidoExito = new Audio('./sounds/exito.mp3');
-const sonidoError = new Audio('./sounds/error.mp3');
-
-/**
- * Genera el menú de selección de niveles basado en bibliotecaPalabras (datos.js)
- */
-function generarMenu() {
-    listaGradosUI.innerHTML = '';
-    for (let grado in bibliotecaPalabras) {
-        const divGrado = document.createElement('div');
-        divGrado.className = 'contenedor-grado';
-        
-        const btnTodoGrado = document.createElement('button');
-        btnTodoGrado.className = 'btn-grado-completo';
-        btnTodoGrado.innerText = `▶️ Practicar Todo ${grado}`;
-        btnTodoGrado.onclick = () => cargarNivel(grado, null);
-        divGrado.appendChild(btnTodoGrado);
-        
-        const divTests = document.createElement('div');
-        divTests.className = 'contenedor-tests';
-        for (let test in bibliotecaPalabras[grado]) {
-            const btnTest = document.createElement('button');
-            btnTest.className = 'btn-test';
-            btnTest.innerText = test;
-            btnTest.onclick = () => cargarNivel(grado, test);
-            divTests.appendChild(btnTest);
-        }
-        divGrado.appendChild(divTests);
-        listaGradosUI.appendChild(divGrado);
+window.addEventListener('load', () => {
+    if (window.APP_VERSION) {
+        document.getElementById('version-display').innerText = window.APP_VERSION;
     }
+    usuarioActual = "";
+    UI.nombreInput.value = "";
+    mostrarPantalla('perfil');
+    generarMenu();
+});
+
+UI.btnEntrar.onclick = () => {
+    const nombre = UI.nombreInput.value.trim();
+    if (nombre) {
+        usuarioActual = nombre;
+        mostrarPantalla('menu');
+    }
+};
+
+function mostrarPantalla(id) {
+    Object.values(pantallas).forEach(p => p.style.display = 'none');
+    const t = pantallas[id] || document.getElementById(id);
+    if (t) t.style.display = 'block';
 }
 
-/**
- * Prepara el banco de palabras y cambia la vista hacia el juego
- */
+// --- 4. SELECCIÓN DE NIVELES ---
+
 function cargarNivel(grado, test) {
     bancoDePalabras.length = 0; 
-    
     if (test) {
         bancoDePalabras.push(...bibliotecaPalabras[grado][test]);
     } else {
-        for (let t in bibliotecaPalabras[grado]) {
-            bancoDePalabras.push(...bibliotecaPalabras[grado][t]);
-        }
+        for (let t in bibliotecaPalabras[grado]) bancoDePalabras.push(...bibliotecaPalabras[grado][t]);
     }
-
     bancoDePalabras.sort(() => Math.random() - 0.5);
-
-    menuUI.style.display = 'none';
-    juegoUI.style.display = 'block';
-    scoreUI.style.display = 'block';
+    mostrarPantalla('modo');
 }
 
-/**
- * Gestiona la síntesis de voz, carga de imagen y reseteo de botones de auditoría
- */
+document.getElementById('btn-modo-hablar').onclick = () => {
+    if (window.esTablet) return alert("Usa modo escritura en Tablet.");
+    modoJuego = "VOZ"; iniciarApp();
+};
+
+document.getElementById('btn-modo-escribir').onclick = () => mostrarPantalla('dificultad');
+document.getElementById('btn-escribir-n1').onclick = () => { modoJuego = "ESCRITURA"; nivelEscritura = 1; iniciarApp(); };
+document.getElementById('btn-escribir-n2').onclick = () => { modoJuego = "ESCRITURA"; nivelEscritura = 2; iniciarApp(); };
+
+function iniciarApp() {
+    indiceActual = 0; puntaje = 0;
+    UI.txtPuntaje.innerText = "0";
+    mostrarPantalla('app');
+    document.getElementById('score-container').style.display = 'block';
+    siguientePalabra();
+}
+
+// --- 5. LÓGICA DE JUEGO Y VOZ AUTOMÁTICA ---
+
+function siguientePalabra() {
+    if (indiceActual >= bancoDePalabras.length) {
+        alert(`¡Fin de la práctica! Puntos: ${puntaje}`);
+        location.reload();
+        return;
+    }
+
+    UI.resultado.innerText = "";
+    UI.btnRescate.style.display = 'none';
+    UI.btnRescate.disabled = false; // Resetear estado del botón
+    UI.btnRescate.innerText = "✨ ¡Lo deletreé bien! (Guardar)";
+    UI.inputEscritura.value = "";
+    UI.inputEscritura.style.display = (modoJuego === "ESCRITURA") ? 'block' : 'none';
+    UI.contenedorLetras.innerHTML = "";
+    UI.btnAccion.disabled = true; 
+    
+    configurarEntrada();
+    pronunciarPalabra();
+}
+
 function pronunciarPalabra() {
-    if (indiceActual >= bancoDePalabras.length) return;
-
-    btnLog.disabled = false;
-    btnLog.style.opacity = "1";
-    btnLog.innerText = "📝 Registrar Error";
-
-    let palabraObjetivo = bancoDePalabras[indiceActual].palabra;
-    const palabraParaHablar = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '').trim();
-
-    const mensaje = new SpeechSynthesisUtterance(palabraParaHablar);
-    mensaje.lang = 'en-US';
-    mensaje.rate = 0.8; 
+    const p = bancoDePalabras[indiceActual];
+    const texto = p.palabra.replace(/\s*\(.*?\)\s*/g, '').trim();
     
-    const nombreImagen = palabraObjetivo.replace(/\s*\(.*?\)\s*/g, '_').replace(/\s+/g, '_').replace(/__+/g, '_').trim('_');
-    img.src = `./img/${nombreImagen}.jpg`;
-    img.style.display = 'inline-block';
+    const msg = new SpeechSynthesisUtterance(texto);
+    msg.lang = 'en-US';
+    msg.rate = 0.8;
     
-    txtEstado.innerText = "Escuchando...";
-    
-    window.speechSynthesis.speak(mensaje);
-    mensaje.onend = () => iniciarGrabacion();
-}
+    UI.imagen.src = p.imagen;
+    UI.imagen.style.display = 'block';
+    UI.estado.innerText = "Escuchando palabra...";
 
-/**
- * Lógica de validación. 
- * CAMBIO: Ahora limpia guiones y guiones bajos para procesar deletreos unidos.
- */
-function evaluarDeletreo(transcript) {
-    ultimaTranscripcionBruta = transcript; 
-    const objetoActual = bancoDePalabras[indiceActual];
-    const palabraCorrecta = objetoActual.palabra.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
-    
-    // Revelamos la transcripción Raw
-    txtEstado.innerHTML = `<span style="color: #666; font-size: 0.9em;">Raw: "${transcript}"</span>`;
-
-    // LIMPIEZA: Reemplazamos guiones, guiones bajos, puntos y comas por espacios.
-    let textoLimpio = transcript.toLowerCase().replace(/[.,?_\-]/g, ' ');
-    
-    // Dividimos por uno o más espacios
-    let piezas = textoLimpio.trim().split(/\s+/);
-    
-    // Traducimos fonética
-    let piezasTraducidas = piezas.map(p => mapaFonetico[p] || p);
-    
-    // Filtramos letras individuales
-    let letrasDeletreadas = piezasTraducidas.filter(pieza => pieza.length === 1);
-    const deletreoFinal = letrasDeletreadas.join('');
-
-    if (deletreoFinal === palabraCorrecta) {
-        txtResultado.innerText = "✅ ¡EXCELENTE!";
-        txtResultado.style.color = "green";
-        sonidoExito.play();
-        puntaje += 10;
-        txtPuntaje.innerText = puntaje;
-        avanzarSiguiente();
-    } else {
-        if (!modoRepaso) {
-            listaErrores.push(objetoActual);
-        }
-
-        txtResultado.innerText = `❌ LA PALABRA ERA: ${palabraCorrecta.toUpperCase()}`;
-        txtResultado.style.color = "red";
-        sonidoError.play();
-        
-        btn.disabled = true;
-        btn.innerText = "MIRA Y ESCUCHA...";
-
-        const deletreoAyuda = new SpeechSynthesisUtterance(palabraCorrecta.split('').join(', '));
-        deletreoAyuda.lang = 'en-US';
-        deletreoAyuda.rate = 0.4; 
-        
-        window.speechSynthesis.speak(deletreoAyuda);
-
-        const tiempoEspera = Math.max(3500, palabraCorrecta.length * 800);
-        setTimeout(() => {
-            btn.disabled = false;
-            avanzarSiguiente();
-        }, tiempoEspera);
-    }
-}
-
-/**
- * Controla el avance del índice o activa la fase de repaso
- */
-function avanzarSiguiente() {
-    indiceActual++;
-
-    if (indiceActual < bancoDePalabras.length) {
-        btn.innerText = modoRepaso ? "SIGUIENTE (REPASO)" : "SIGUIENTE PALABRA";
-    } else {
-        if (!modoRepaso && listaErrores.length > 0) {
-            activarModoRepaso();
+    msg.onend = () => {
+        if (modoJuego === "VOZ") {
+            iniciarGrabacion();
         } else {
-            btn.innerText = "🎉 JUEGO TERMINADO";
-            btn.disabled = true;
-            txtEstado.innerText = `Puntaje Final: ${puntaje}`;
-            img.style.display = 'none';
+            UI.btnAccion.disabled = false;
+            UI.btnAccion.innerText = "✔️ COMPROBAR";
+            UI.btnAccion.onclick = evaluarEscritura;
         }
+    };
+
+    window.speechSynthesis.speak(msg);
+}
+
+function configurarEntrada() {
+    if (modoJuego === "ESCRITURA") {
+        UI.inputEscritura.focus();
+        if (nivelEscritura === 1) {
+            const palabra = bancoDePalabras[indiceActual].palabra.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
+            palabra.split('').sort(() => Math.random() - 0.5).forEach(l => {
+                const tile = document.createElement('div');
+                tile.className = 'letra-tile';
+                tile.innerText = l.toUpperCase();
+                tile.onclick = () => { UI.inputEscritura.value += l; UI.inputEscritura.focus(); };
+                UI.contenedorLetras.appendChild(tile);
+            });
+        }
+        UI.inputEscritura.onkeydown = (e) => { if (e.key === "Enter") evaluarEscritura(); };
     }
 }
 
-/**
- * Configura el banco para trabajar sólo con los errores cometidos
- */
-function activarModoRepaso() {
-    modoRepaso = true;
-    bancoDePalabras.length = 0; 
-    bancoDePalabras.push(...listaErrores);
-    bancoDePalabras.sort(() => Math.random() - 0.5);
-    indiceActual = 0;
-    
-    txtEstado.innerText = "¡VAMOS A REPASAR LAS QUE FALLARON!";
-    btn.innerText = "INICIAR REPASO";
+// --- 6. GESTIÓN DE MICRO ---
+
+let mediaRecorder;
+let audioBlobs = [];
+
+async function iniciarGrabacion() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioBlobs = [];
+        
+        mediaRecorder.ondataavailable = e => audioBlobs.push(e.data);
+        mediaRecorder.onstop = () => {
+            ultimoAudioBlob = new Blob(audioBlobs, { type: 'audio/webm' });
+            window.dispatchEvent(new CustomEvent('audioReady', { detail: { blob: ultimoAudioBlob } }));
+        };
+        
+        mediaRecorder.start();
+        UI.btnAccion.disabled = false;
+        UI.btnAccion.innerText = "🛑 PARAR DELETREO";
+        UI.btnAccion.classList.add('btn-grabar');
+        UI.btnAccion.onclick = detenerGrabacion;
+        UI.estado.innerText = "🎤 ¡Deletrea ahora!";
+    } catch (err) {
+        alert("Micro bloqueado.");
+    }
 }
 
-// --- EVENTOS DE AUDITORÍA TÉCNICA (LOGS) ---
-
-btnLog.onclick = () => {
-    const palabraEsperada = bancoDePalabras[indiceActual - 1]?.palabra || "N/A";
-    registroSesion.push({
-        target: palabraEsperada,
-        heard: ultimaTranscripcionBruta,
-        timestamp: new Date().toLocaleTimeString()
-    });
-
-    btnLog.disabled = true;
-    btnLog.style.opacity = "0.5";
-    btnLog.innerText = "✅ Guardado";
-};
-
-btnExport.onclick = () => {
-    if (registroSesion.length === 0) return;
-    
-    const textoLog = registroSesion.map(e => `[${e.timestamp}] PALABRA: ${e.target} | ESCUCHÓ: "${e.heard}"`).join('\n');
-    
-    navigator.clipboard.writeText(textoLog).then(() => {
-        const originalText = btnExport.innerText;
-        btnExport.innerText = "📋 ¡Copiado!";
-        setTimeout(() => btnExport.innerText = originalText, 2000);
-    });
-};
-
-// Inicialización de la interfaz
-window.addEventListener('load', () => {
-    generarMenu(); 
-    if (typeof APP_VERSION !== 'undefined') {
-        document.getElementById('version-display').innerText = `Versión: ${APP_VERSION}`;
+function detenerGrabacion() {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        UI.btnAccion.disabled = true;
+        UI.btnAccion.innerText = "ANALIZANDO...";
+        UI.btnAccion.classList.remove('btn-grabar');
     }
-});
+}
+
+// --- 7. EVALUACIÓN Y GUARDADO ---
+
+function evaluarEscritura() {
+    const intento = UI.inputEscritura.value.trim().toLowerCase();
+    const correcta = bancoDePalabras[indiceActual].palabra.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
+    if (intento === correcta) marcarExito(); else marcarError(correcta);
+}
+
+window.marcarExito = () => {
+    puntaje += 10; UI.txtPuntaje.innerText = puntaje;
+    UI.resultado.innerText = "✅ ¡EXCELENTE!";
+    UI.resultado.style.color = "#28a745";
+    new Audio('./sounds/exito.mp3').play();
+    if (modoJuego === "VOZ") guardarClipLocalmente(); 
+    setTimeout(avanzar, 1500);
+};
+
+window.marcarError = (correcta) => {
+    UI.btnAccion.disabled = true;
+    UI.resultado.innerText = `❌ ERA: ${correcta.toUpperCase()}`;
+    UI.resultado.style.color = "#dc3545";
+    new Audio('./sounds/error.mp3').play();
+    if (modoJuego === "VOZ") UI.btnRescate.style.display = 'block';
+
+    const msg = new SpeechSynthesisUtterance(correcta.split('').join(', '));
+    msg.lang = 'en-US';
+    msg.rate = 0.5;
+    msg.onend = () => {
+        setTimeout(() => {
+            if (modoJuego !== "VOZ") avanzar();
+            else {
+                UI.btnAccion.disabled = false;
+                UI.btnAccion.innerText = "SIGUIENTE";
+                UI.btnAccion.onclick = avanzar;
+            }
+        }, 1000);
+    };
+    window.speechSynthesis.speak(msg);
+};
+
+function avanzar() { indiceActual++; siguientePalabra(); }
+
+// CORRECCIÓN: Función de guardado con anclaje al DOM
+function guardarClipLocalmente() {
+    if (!ultimoAudioBlob || !usuarioActual) return;
+    const p = bancoDePalabras[indiceActual].palabra.replace(/\s+/g, '_').replace(/[()]/g, '');
+    const nombre = `${usuarioActual}_${p}_${Date.now()}.webm`;
+    const url = URL.createObjectURL(ultimoAudioBlob);
+    
+    const a = document.createElement('a');
+    a.style.display = 'none'; // No se ve en la UI
+    a.href = url; 
+    a.download = nombre; 
+    
+    document.body.appendChild(a); // Vital para que funcione el click()
+    a.click();
+    document.body.removeChild(a); // Limpieza inmediata del DOM
+    
+    // Liberar memoria después de un momento para asegurar que el navegador procesó la descarga
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
+// CORRECCIÓN: Vincular el botón de rescate
+UI.btnRescate.onclick = () => {
+    guardarClipLocalmente();
+    UI.btnRescate.innerText = "✅ GUARDADO";
+    UI.btnRescate.disabled = true;
+};
+
+function generarMenu() {
+    UI.listaGrados.innerHTML = '';
+    for (let g in bibliotecaPalabras) {
+        const div = document.createElement('div');
+        div.className = 'contenedor-grado';
+        const b = document.createElement('button');
+        b.className = 'btn-grado-completo';
+        b.innerText = `▶️ ${g}`;
+        b.onclick = () => cargarNivel(g, null);
+        div.appendChild(b);
+        const tCont = document.createElement('div');
+        tCont.className = 'contenedor-tests';
+        for (let t in bibliotecaPalabras[g]) {
+            const bt = document.createElement('button');
+            bt.className = 'btn-test'; bt.innerText = t;
+            bt.onclick = () => cargarNivel(g, t);
+            tCont.appendChild(bt);
+        }
+        div.appendChild(tCont);
+        UI.listaGrados.appendChild(div);
+    }
+}

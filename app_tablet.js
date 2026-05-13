@@ -1,81 +1,64 @@
 /**
- * Motor de Procesamiento Local con Whisper AI (Tablet)
- * Optimizada para dispositivos con recursos moderados.
+ * Motor de Control para Tablets - VERSIÓN SEGURA (Sin IA)
+ * Objetivo: Deshabilitar el procesamiento de voz local para ahorrar recursos 
+ * y forzar el uso del nuevo sistema de escritura nivelada.
  */
-let transcriber;
-let mediaRecorder;
-let chunks = [];
 
-async function initAI() {
-    try {
-        const aiStatus = document.getElementById('ai-status');
-        aiStatus.innerText = "IA Cargando (Tablet)...";
-        
-        // Cargamos el modelo tiny.en (el más ligero posible)
-        transcriber = await window.whisperPipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
-        
-        aiStatus.innerText = "IA Lista ✅";
-        btn.disabled = false;
-        btn.innerText = "REPRODUCIR PALABRA";
-    } catch (err) {
-        console.error("Fallo IA Tablet:", err);
-    }
-}
+// Referencias a la interfaz compartida
+const statusLabel = document.getElementById('ai-status');
+const actionBtn = document.getElementById('accionBtn');
 
-async function iniciarGrabacion() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        chunks = [];
-
-        mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-        mediaRecorder.onstop = async () => {
-            const blob = new Blob(chunks, { type: 'audio/webm' });
-            procesarAudioIA(blob);
-        };
-
-        escuchando = true;
-        btn.innerText = "🛑 TOCAR AL TERMINAR";
-        btn.classList.add('btn-grabar');
-        mediaRecorder.start();
-    } catch (err) {
-        txtEstado.innerText = "Error micrófono.";
-    }
-}
-
-async function procesarAudioIA(blob) {
-    txtEstado.innerText = "Analizando deletreo...";
+/**
+ * Inicialización del sistema para dispositivos móviles/tablets
+ */
+function initTabletMode() {
+    console.log("%c [SISTEMA] Modo Tablet detectado. Bloqueando descarga de modelos pesados.", "color: orange; font-weight: bold;");
     
-    // Reducción a 16kHz necesaria para el motor Whisper
-    const audioContext = new AudioContext({ sampleRate: 16000 });
-    const arrayBuffer = await blob.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    const audioData = audioBuffer.getChannelData(0);
+    if (statusLabel) {
+        statusLabel.innerText = "Modo Escritura Activo ⌨️";
+        statusLabel.style.color = "#00796b";
+    }
 
-    const output = await transcriber(audioData, {
-        language: 'english',
-        task: 'transcribe'
-    });
-
-    evaluarDeletreo(output.text.trim());
-}
-
-function finalizarYEvaluar() {
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-        mediaRecorder.stop();
-        escuchando = false;
-        btn.classList.remove('btn-grabar');
-        btn.innerText = "ESPERA...";
+    // El botón principal se gestionará desde core.js para el modo escritura
+    // pero nos aseguramos de que no intente llamar a la IA de voz.
+    if (actionBtn) {
+        actionBtn.disabled = false;
+        actionBtn.innerText = "ESPERANDO MODO...";
     }
 }
 
-btn.addEventListener('click', () => {
-    if (!escuchando) {
-        txtResultado.innerText = "";
-        pronunciarPalabra();
-    } else {
-        finalizarYEvaluar();
+/**
+ * En tablet, si por algún motivo se llegara a disparar un evento de audio,
+ * lo ignoramos o notificamos que no hay procesador local disponible.
+ */
+window.addEventListener('audioReady', () => {
+    console.warn("[ADVERTENCIA] Intento de procesamiento de voz en Tablet. Operación bloqueada por configuración.");
+    
+    const estadoUI = document.getElementById('estado');
+    if (estadoUI) {
+        estadoUI.innerText = "⚠️ El modo voz no está disponible en este dispositivo.";
+    }
+    
+    // Devolvemos el control al botón para no bloquear la app
+    if (actionBtn) {
+        actionBtn.disabled = false;
+        actionBtn.innerText = "VOLVER A INTENTAR";
     }
 });
 
-initAI();
+/**
+ * Mantenemos la estructura de eventos por consistencia con core.js
+ */
+window.addEventListener('IA_Library_Ready', () => {
+    initTabletMode();
+});
+
+// Lanzamos la inicialización inmediatamente si la librería no es necesaria
+initTabletMode();
+
+/**
+ * NOTA PARA ENTRENAMIENTO:
+ * Aunque el procesamiento de IA está bloqueado en Tablet para optimizar, 
+ * el sistema de grabación de core.js podría seguir capturando clips 
+ * si en el futuro decides habilitar la recolección de datos "muda" en tablets.
+ */

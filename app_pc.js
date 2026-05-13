@@ -1,154 +1,113 @@
 /**
- * Motor Whisper AI - VERSIÓN AUDITORÍA TOTAL
- * Objetivo: Capturar métricas de audio y preservar logs detallados para análisis.
+ * app_pc.js - MOTOR DE IA WHISPER (PC)
+ * Versión 2.0.7 - "Extreme-Aware" & "Glue-Resistant"
+ * 
+ * Esta versión maneja:
+ * 1. Word-Spell-Word (aunque falte alguna palabra).
+ * 2. Efecto "Pegamento" (Whisper une letras en palabras completas).
+ * 3. Falsos Positivos (No basta con decir la palabra, hay que deletrearla).
  */
-let transcriber;
-let mediaRecorder;
-let chunks = [];
 
-window.addEventListener('IA_Library_Ready', () => {
-    console.log("%c [SISTEMA] Librería cargada. Inicializando IA...", "color: blue; font-weight: bold;");
-    initAI();
+let transcriber;
+
+// 1. INICIALIZACIÓN
+window.addEventListener('IA_Library_Ready', async () => {
+    const statusLabel = document.getElementById('ai-status');
+    const actionBtn = document.getElementById('accionBtn');
+
+    try {
+        statusLabel.innerText = "🧠 Cargando IA (Base-English)...";
+        transcriber = await window.whisperPipeline('automatic-speech-recognition', 'Xenova/whisper-base.en');
+        statusLabel.innerText = "IA de Voz Lista ✅";
+        statusLabel.style.color = "#28a745";
+        if (actionBtn) {
+            actionBtn.disabled = false;
+            actionBtn.innerText = "🎤 COMENZAR PRÁCTICA";
+        }
+    } catch (err) {
+        statusLabel.innerText = "❌ Error de carga.";
+    }
 });
 
-async function initAI() {
-    const aiStatus = document.getElementById('ai-status');
-    try {
-        aiStatus.innerText = "Cargando Cerebro Base-English (145MB)...";
-        // Usamos base.en por estabilidad en fonética inglesa
-        transcriber = await window.whisperPipeline('automatic-speech-recognition', 'Xenova/whisper-base.en');
-        aiStatus.innerText = "IA English Lista ✅";
-        btn.disabled = false;
-        btn.innerText = "REPRODUCIR PALABRA";
-    } catch (err) {
-        console.error("[DEBUG ERROR] Fallo carga IA:", err);
-        aiStatus.innerText = "Error: " + err.message;
-    }
-}
+// 2. PROCESAMIENTO DE AUDIO
+window.addEventListener('audioReady', async (e) => {
+    const { blob } = e.detail;
+    const estadoUI = document.getElementById('estado');
+    const palabraCorrecta = bancoDePalabras[indiceActual].palabra.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
 
-async function iniciarGrabacion() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: { 
-                autoGainControl: true, 
-                noiseSuppression: true, 
-                echoCancellation: true 
-            } 
-        });
-        
-        mediaRecorder = new MediaRecorder(stream);
-        chunks = [];
-
-        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-        
-        mediaRecorder.onstop = async () => {
-            const blob = new Blob(chunks, { type: 'audio/webm' });
-            procesarAudioIA(blob);
-        };
-
-        escuchando = true;
-        btn.innerText = "🛑 TOCAR AL TERMINAR";
-        btn.classList.add('btn-grabar');
-        mediaRecorder.start();
-    } catch (err) {
-        txtEstado.innerText = "Error Micro: " + err.message;
-    }
-}
-
-async function procesarAudioIA(blob) {
-    const palabraEsperada = bancoDePalabras[indiceActual]?.palabra || "N/A";
-    txtEstado.innerText = "IA Analizando...";
-
-    console.log(`%c >>> PROCESANDO: [${palabraEsperada.toUpperCase()}] <<< `, "background: #222; color: #bada55; padding: 5px;");
+    estadoUI.innerText = "✨ IA Analizando...";
 
     try {
-        const audioContext = new AudioContext({ sampleRate: 16000 });
-        const arrayBuffer = await blob.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        let audioData = audioBuffer.getChannelData(0);
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const buffer = await audioCtx.decodeAudioData(await blob.arrayBuffer());
+        const audioData = buffer.getChannelData(0);
 
-        // --- MÉTRICAS DE AUDIO ---
-        let maxPeak = 0;
-        let sumaCuadrados = 0;
-        for (let i = 0; i < audioData.length; i++) {
-            const absVal = Math.abs(audioData[i]);
-            if (absVal > maxPeak) maxPeak = absVal;
-            sumaCuadrados += audioData[i] * audioData[i];
-        }
-        let rms = Math.sqrt(sumaCuadrados / audioData.length);
-
-        console.log(`[MÉTRICAS] Pico Máx: ${maxPeak.toFixed(4)} | RMS (Energía): ${rms.toFixed(4)}`);
-
-        // --- NORMALIZACIÓN POR PICO (No destructiva) ---
-        // Solo aplicamos si hay sonido para evitar amplificar silencio absoluto
-        let multiplier = 1;
-        if (maxPeak > 0.001) {
-            multiplier = 0.9 / maxPeak;
-            for (let i = 0; i < audioData.length; i++) {
-                audioData[i] *= multiplier;
-            }
-            console.log(`[AJUSTE] Multiplicador aplicado: x${multiplier.toFixed(2)}`);
-        }
-
-        // --- LLAMADA A IA CON LOGS DE RESULTADO ---
         const output = await transcriber(audioData, {
             language: 'english',
             task: 'transcribe',
-            no_speech_threshold: 0.1, // Sensibilidad alta
-            logprob_threshold: -1.5,
-            temperature: 0.0
+            temperature: 0,
+            no_speech_threshold: 0.02 
         });
 
-        // LOG DETALLADO DEL OBJETO IA
-        console.log("[IA RAW OBJECT]:", output);
+        const rawText = output.text.toLowerCase().trim();
         
-        let rawText = output.text ? output.text.trim() : "";
-        console.log(`%c [IA RESULT]: "${rawText}" `, "background: #efefef; color: #333; font-weight: bold;");
+        // Feedback visual: Lo que la IA escuchó realmente
+        estadoUI.innerHTML = `IA escuchó: <br><strong>"${rawText}"</strong>`;
 
-        // Si el resultado es vacío pero había energía, generamos evidencia
-        if (rawText === "" && maxPeak > 0.05) {
-            console.warn("[ALERTA] Audio con volumen pero IA no devolvió texto.");
-            generarBotonDescarga(blob, palabraEsperada);
+        // --- LÓGICA DE DETECTIVE v2.0.7 ---
+        
+        // Separamos en piezas limpias
+        let piezas = rawText.replace(/[.,?_\-]/g, " ").split(/\s+/).filter(p => p.length > 0);
+        
+        /**
+         * PASO 1: Limpieza Inteligente de Extremos
+         * Si la primera o última pieza es EXACTAMENTE la palabra, la quitamos.
+         * Esto funciona aunque Whisper solo detecte una de las dos.
+         */
+        if (piezas.length > 1) {
+            if (piezas[0] === palabraCorrecta) {
+                console.log("Poda: Palabra inicial detectada y removida.");
+                piezas.shift();
+            }
+            // Revisamos de nuevo longitud porque pudo quedar vacía
+            if (piezas.length > 0 && piezas[piezas.length - 1] === palabraCorrecta) {
+                console.log("Poda: Palabra final detectada y removida.");
+                piezas.pop();
+            }
         }
 
-        // Limpieza final antes de mandar al core
-        let cleanText = rawText.replace(/[.,?_\-]/g, " ").replace(/\[.*?\]/g, "").trim();
-        evaluarDeletreo(cleanText);
+        /**
+         * PASO 2: Construcción del Núcleo de Deletreo
+         * Lo que queda en 'piezas' es lo que el niño hizo entre la primera y última palabra.
+         */
+        let deletreoExtraido = "";
+        piezas.forEach(pieza => {
+            if (window.mapaFonetico[pieza]) {
+                deletreoExtraido += window.mapaFonetico[pieza]; // "sea" -> "c"
+            } else if (pieza.length === 1 && /[a-z]/.test(pieza)) {
+                deletreoExtraido += pieza; // "l", "i", "z"...
+            } else {
+                // "bed" (pegamento) o "lister" (ruido/error)
+                deletreoExtraido += pieza; 
+            }
+        });
+
+        console.log(`[Análisis] Núcleo: "${deletreoExtraido}" | Objetivo: "${palabraCorrecta}"`);
+
+        /**
+         * PASO 3: Validación de Seguridad
+         * Para evitar que "Lizard Lizard" (sin deletrear) de puntos:
+         * Si el niño no deletreó nada, el núcleo estará vacío o será solo ruido.
+         */
+        if (deletreoExtraido.includes(palabraCorrecta)) {
+            window.marcarExito();
+        } else {
+            window.marcarError(palabraCorrecta);
+        }
 
     } catch (err) {
-        console.error("[ERROR CRÍTICO]:", err);
-        txtEstado.innerText = "Error procesando audio.";
-    }
-}
-
-/**
- * Función de evidencia: Permite descargar el audio exacto que falló
- */
-function generarBotonDescarga(blob, palabra) {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `fallo_${palabra}_${Date.now()}.webm`;
-    link.innerText = "⬇️ Descargar audio del fallo";
-    link.style = "display:block; color:red; font-size:12px; margin-top:5px; text-decoration:underline; cursor:pointer;";
-    txtEstado.appendChild(link);
-}
-
-function finalizarYEvaluar() {
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-        mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(t => t.stop());
-        escuchando = false;
-        btn.classList.remove('btn-grabar');
-        btn.innerText = "PROCESANDO...";
-    }
-}
-
-btn.addEventListener('click', () => {
-    if (!escuchando) { 
-        txtResultado.innerText = ""; 
-        pronunciarPalabra(); 
-    } else { 
-        finalizarYEvaluar(); 
+        console.error("Error:", err);
+        estadoUI.innerText = "⚠️ Error de análisis.";
+        window.marcarError(palabraCorrecta);
     }
 });

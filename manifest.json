@@ -3,13 +3,15 @@
   "short_name": "SpellingBee",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#007bff",
+  "background_color": "#e0f2f1",
+  "theme_color": "#00796b",
+  "description": "Entrenador de deletreo con modos de voz y escritura nivelada.",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/5606/5606131.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

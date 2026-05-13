@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Whisper AI - Lab 15.0: Elastic Shield VAD</title>
+    <style>
+        body { font-family: 'Courier New', monospace; padding: 10px; background: #0d1117; color: #c9d1d9; }
+        .container { width: 100%; margin: auto; }
+        h1 { color: #58a6ff; text-align: center; border-bottom: 2px solid #30363d; padding-bottom: 10px; }
+        .panel { background: #161b22; padding: 15px; border: 1px solid #30363d; border-radius: 6px; margin-bottom: 15px; }
+        table { width: 100%; border-collapse: collapse; background: #0d1117; font-size: 11px; }
+        th, td { border: 1px solid #30363d; padding: 8px; text-align: left; }
+        th { background: #161b22; color: #58a6ff; }
+        .success { color: #3fb950; background: rgba(63, 185, 80, 0.1); font-weight: bold; }
+        .fail { color: #f85149; background: rgba(248, 81, 73, 0.1); }
+        .btn-play { background: #238636; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .val { color: #f1e05a; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔬 Lab 15.0: Escudo Elástico y Recuperación de Transitorios</h1>
+    
+    <div class="panel">
+        <div id="ai-status">Iniciando motor...</div>
+        <div id="test-progress" style="color: #d29922; margin: 10px 0;"></div>
+        <button id="btnIniciarTest" disabled style="width:100%; padding:15px; background:#238636; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">EJECUTAR TEST DE ALTA FIDELIDAD</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Palabra</th>
+                <th>Perfil</th>
+                <th>Audio (s)</th>
+                <th>Energía</th>
+                <th>Telemetría VAD</th>
+                <th>Raw Output</th>
+                <th>Debug</th>
+                <th>Res</th>
+            </tr>
+        </thead>
+        <tbody id="tablaResultados"></tbody>
+    </table>
+</div>
+
+<script type="module">
+    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+    env.allowLocalModels = false;
+    window.whisperPipeline = pipeline;
+    window.dispatchEvent(new Event('IA_Ready'));
+</script>
+<script src="test_lab.js"></script>
+</body>
+</html>
