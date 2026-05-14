@@ -1,11 +1,6 @@
 /**
- * CORE.JS - SPELLING BEE TRAINER v2.0.3
- * Versión: Dataset Builder (Hands-Free)
- * 
- * Cambios realizados:
- * - Se corrigió guardarClipLocalmente para asegurar compatibilidad con el navegador.
- * - Se vinculó el evento click al botón de rescate (UI.btnRescate).
- * - Se mantuvo intacta la lógica de estabilidad v2.0.2.
+ * CORE.JS - SPELLING BEE TRAINER v2.0.4
+ * Versión: Dataset Builder (Estabilidad v2.0.2 + Reintento Único)
  */
 
 // --- 1. VARIABLES DE ESTADO ---
@@ -16,6 +11,7 @@ let indiceActual = 0;
 let puntaje = 0;
 let listaErrores = [];
 let ultimoAudioBlob = null;
+let reintentoActivo = false; // Único control nuevo para el flujo de reintento
 
 // --- 2. REFERENCIAS UI ---
 const pantallas = {
@@ -113,7 +109,7 @@ function siguientePalabra() {
 
     UI.resultado.innerText = "";
     UI.btnRescate.style.display = 'none';
-    UI.btnRescate.disabled = false; // Resetear estado del botón
+    UI.btnRescate.disabled = false;
     UI.btnRescate.innerText = "✨ ¡Lo deletreé bien! (Guardar)";
     UI.inputEscritura.value = "";
     UI.inputEscritura.style.display = (modoJuego === "ESCRITURA") ? 'block' : 'none';
@@ -134,7 +130,9 @@ function pronunciarPalabra() {
     
     UI.imagen.src = p.imagen;
     UI.imagen.style.display = 'block';
-    UI.estado.innerText = "Escuchando palabra...";
+    
+    // Feedback de estado de intento
+    UI.estado.innerText = reintentoActivo ? "¡Segundo intento! Escucha de nuevo..." : "Escuchando palabra...";
 
     msg.onend = () => {
         if (modoJuego === "VOZ") {
@@ -204,7 +202,7 @@ function detenerGrabacion() {
     }
 }
 
-// --- 7. EVALUACIÓN Y GUARDADO ---
+// --- 7. EVALUACIÓN Y LÓGICA DE REINTENTO ---
 
 function evaluarEscritura() {
     const intento = UI.inputEscritura.value.trim().toLowerCase();
@@ -213,6 +211,7 @@ function evaluarEscritura() {
 }
 
 window.marcarExito = () => {
+    reintentoActivo = false; // Reset al acertar
     puntaje += 10; UI.txtPuntaje.innerText = puntaje;
     UI.resultado.innerText = "✅ ¡EXCELENTE!";
     UI.resultado.style.color = "#28a745";
@@ -231,47 +230,56 @@ window.marcarError = (correcta) => {
     const msg = new SpeechSynthesisUtterance(correcta.split('').join(', '));
     msg.lang = 'en-US';
     msg.rate = 0.5;
+    
     msg.onend = () => {
         setTimeout(() => {
-            if (modoJuego !== "VOZ") avanzar();
-            else {
-                UI.btnAccion.disabled = false;
-                UI.btnAccion.innerText = "SIGUIENTE";
-                UI.btnAccion.onclick = avanzar;
+            if (!reintentoActivo) {
+                // Primer error: Repetir palabra actual
+                reintentoActivo = true;
+                siguientePalabra();
+            } else {
+                // Segundo error: Avanzar definitivamente
+                reintentoActivo = false;
+                if (modoJuego !== "VOZ") {
+                    avanzar();
+                } else {
+                    UI.btnAccion.disabled = false;
+                    UI.btnAccion.innerText = "SIGUIENTE";
+                    UI.btnAccion.onclick = avanzar;
+                }
             }
         }, 1000);
     };
     window.speechSynthesis.speak(msg);
 };
 
-function avanzar() { indiceActual++; siguientePalabra(); }
+function avanzar() { 
+    reintentoActivo = false; 
+    indiceActual++; 
+    siguientePalabra(); 
+}
 
-// CORRECCIÓN: Función de guardado con anclaje al DOM
 function guardarClipLocalmente() {
     if (!ultimoAudioBlob || !usuarioActual) return;
     const p = bancoDePalabras[indiceActual].palabra.replace(/\s+/g, '_').replace(/[()]/g, '');
     const nombre = `${usuarioActual}_${p}_${Date.now()}.webm`;
     const url = URL.createObjectURL(ultimoAudioBlob);
-    
     const a = document.createElement('a');
-    a.style.display = 'none'; // No se ve en la UI
-    a.href = url; 
-    a.download = nombre; 
-    
-    document.body.appendChild(a); // Vital para que funcione el click()
+    a.style.display = 'none';
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a); // Limpieza inmediata del DOM
-    
-    // Liberar memoria después de un momento para asegurar que el navegador procesó la descarga
+    document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
-// CORRECCIÓN: Vincular el botón de rescate
 UI.btnRescate.onclick = () => {
     guardarClipLocalmente();
     UI.btnRescate.innerText = "✅ GUARDADO";
     UI.btnRescate.disabled = true;
 };
+
+// --- 8. GENERACIÓN DE MENÚ ---
 
 function generarMenu() {
     UI.listaGrados.innerHTML = '';
