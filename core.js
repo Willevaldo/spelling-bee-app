@@ -140,7 +140,7 @@ function pronunciarPalabra() {
         } else {
             UI.btnAccion.disabled = false;
             UI.btnAccion.innerText = "✔️ COMPROBAR";
-            ui.btnAccion.onclick = evaluarEscritura;
+            UI.btnAccion.onclick = evaluarEscritura; // CORREGIDO: "UI" en mayúsculas corregido aquí
         }
     };
 
@@ -289,7 +289,7 @@ UI.btnRescate.onclick = () => {
     UI.btnRescate.disabled = true;
 };
 
-// --- NUEVA FUNCIÓN: FINALIZACIÓN Y RENDERIZADO DE REPORTE DE ERRORES ---
+// --- FUNCIÓN: FINALIZACIÓN Y RENDERIZADO DE REPORTE DE ERRORES ---
 function finalizarPractica() {
     // Ocultar elementos operativos de la app de juego
     UI.imagen.style.display = 'none';
