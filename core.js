@@ -9,7 +9,7 @@ let modoJuego = "";
 let nivelEscritura = 0; 
 let indiceActual = 0;
 let puntaje = 0;
-let listaErrores = [];
+let listaErrores = []; // Almacenará objetos { palabra: string, tipo: 'VOZ' | 'ESCRITURA' }
 let ultimoAudioBlob = null;
 let reintentoActivo = false; // Único control nuevo para el flujo de reintento
 
@@ -92,6 +92,7 @@ document.getElementById('btn-escribir-n2').onclick = () => { modoJuego = "ESCRIT
 
 function iniciarApp() {
     indiceActual = 0; puntaje = 0;
+    listaErrores = []; // Reiniciar registro de errores al iniciar la práctica
     UI.txtPuntaje.innerText = "0";
     mostrarPantalla('app');
     document.getElementById('score-container').style.display = 'block';
@@ -102,8 +103,7 @@ function iniciarApp() {
 
 function siguientePalabra() {
     if (indiceActual >= bancoDePalabras.length) {
-        alert(`¡Fin de la práctica! Puntos: ${puntaje}`);
-        location.reload();
+        finalizarPractica();
         return;
     }
 
@@ -140,7 +140,7 @@ function pronunciarPalabra() {
         } else {
             UI.btnAccion.disabled = false;
             UI.btnAccion.innerText = "✔️ COMPROBAR";
-            UI.btnAccion.onclick = evaluarEscritura;
+            ui.btnAccion.onclick = evaluarEscritura;
         }
     };
 
@@ -227,6 +227,16 @@ window.marcarError = (correcta) => {
     new Audio('./sounds/error.mp3').play();
     if (modoJuego === "VOZ") UI.btnRescate.style.display = 'block';
 
+    // REGISTRO DE ERROR: Almacena la palabra si falla el intento (evita duplicados si falla ambos intentos)
+    const palabraOriginal = bancoDePalabras[indiceActual].palabra;
+    const yaExiste = listaErrores.some(err => err.palabra === palabraOriginal && err.tipo === modoJuego);
+    if (!yaExiste) {
+        listaErrores.push({
+            palabra: palabraOriginal,
+            tipo: modoJuego
+        });
+    }
+
     const msg = new SpeechSynthesisUtterance(correcta.split('').join(', '));
     msg.lang = 'en-US';
     msg.rate = 0.5;
@@ -278,6 +288,82 @@ UI.btnRescate.onclick = () => {
     UI.btnRescate.innerText = "✅ GUARDADO";
     UI.btnRescate.disabled = true;
 };
+
+// --- NUEVA FUNCIÓN: FINALIZACIÓN Y RENDERIZADO DE REPORTE DE ERRORES ---
+function finalizarPractica() {
+    // Ocultar elementos operativos de la app de juego
+    UI.imagen.style.display = 'none';
+    UI.contenedorLetras.innerHTML = "";
+    UI.inputEscritura.style.display = 'none';
+    UI.btnAccion.style.display = 'none';
+    UI.btnRescate.style.display = 'none';
+    
+    UI.estado.innerText = "Práctica Terminada";
+    UI.resultado.innerText = "";
+
+    // Crear dinámicamente el contenedor del reporte
+    const contenedorReporte = document.createElement('div');
+    contenedorReporte.id = 'reporte-errores-final';
+    contenedorReporte.style.cssText = `
+        margin: 20px auto;
+        padding: 20px;
+        background: #fff5f5;
+        border: 2px solid #feb2b2;
+        border-radius: 10px;
+        font-family: sans-serif;
+        text-align: left;
+        max-width: 500px;
+    `;
+
+    if (listaErrores.length === 0) {
+        contenedorReporte.innerHTML = `
+            <h3 style="color: #2f855a; margin-top: 0;">🎉 ¡Felicidades, ${usuarioActual}!</h3>
+            <p style="color: #38a169; margin-bottom: 0;">No tuviste errores en esta sesión de práctica.</p>
+        `;
+    } else {
+        let itemsHtml = '';
+        listaErrores.forEach(item => {
+            const colorEtiqueta = item.tipo === 'VOZ' ? '#3182ce' : '#dd6b20';
+            const textoEtiqueta = item.tipo === 'VOZ' ? 'Hablado' : 'Escrito';
+            
+            itemsHtml += `
+                <li style="margin-bottom: 10px; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #edf2f7; padding-bottom: 5px;">
+                    <strong style="color: #2d3748;">${item.palabra}</strong>
+                    <span style="background: ${colorEtiqueta}; color: white; font-size: 0.8rem; padding: 3px 8px; border-radius: 5px; font-weight: bold; text-transform: uppercase;">
+                        ${textoEtiqueta}
+                    </span>
+                </li>
+            `;
+        });
+
+        contenedorReporte.innerHTML = `
+            <h3 style="color: #9b2c2c; margin-top: 0; border-bottom: 2px solid #feb2b2; padding-bottom: 10px;">📋 Palabras por Repasar</h3>
+            <ul style="list-style: none; padding: 0; margin: 15px 0 0 0;">
+                ${itemsHtml}
+            </ul>
+        `;
+    }
+
+    // Botón de salida para reiniciar la interfaz
+    const btnSalir = document.createElement('button');
+    btnSalir.innerText = "VOLVER AL MENÚ";
+    btnSalir.style.cssText = `
+        margin-top: 20px;
+        padding: 10px 20px;
+        font-size: 1rem;
+        background: #4a5568;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        width: 100%;
+    `;
+    btnSalir.onclick = () => location.reload();
+    contenedorReporte.appendChild(btnSalir);
+
+    // Inyectar el reporte dentro del canvas principal del juego
+    pantallas.app.appendChild(contenedorReporte);
+}
 
 // --- 8. GENERACIÓN DE MENÚ ---
 
