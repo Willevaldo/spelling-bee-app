@@ -1,7 +1,7 @@
 // Estructura de datos organizada por Grado y Test
 const bibliotecaPalabras = {
     "1st Grade": {
-        "Test 3": [
+        "Test 2": [
             { palabra: "cake", imagen: "./img/cake.jpg" },
             { palabra: "candy", imagen: "./img/candy.jpg" },
             { palabra: "carrot", imagen: "./img/carrot.jpg" },
@@ -70,7 +70,9 @@ const bibliotecaPalabras = {
             { palabra: "Ben", imagen: "./img/Ben.jpg" },
             { palabra: "Lucy", imagen: "./img/Lucy.jpg" },
             { palabra: "Kim", imagen: "./img/Kim.jpg" },
-            { palabra: "Sam", imagen: "./img/Sam.jpg" },
+            { palabra: "Sam", imagen: "./img/Sam.jpg" }
+        ],
+        "Test 3": [
             { palabra: "eraser", imagen: "./img/eraser.jpg" },
             { palabra: "letter", imagen: "./img/letter.jpg" },
             { palabra: "book", imagen: "./img/book.jpg" },
@@ -84,11 +86,25 @@ const bibliotecaPalabras = {
             { palabra: "pen", imagen: "./img/pen.jpg" },
             { palabra: "pencil", imagen: "./img/pencil.jpg" },
             { palabra: "school", imagen: "./img/school.jpg" },
-            { palabra: "ruler", imagen: "./img/ruler.jpg" }
+            { palabra: "ruler", imagen: "./img/ruler.jpg" },
+            { palabra: "ball", imagen: "./img/ball.jpg" },
+            { palabra: "bat (sport)", imagen: "./img/bat_sport.jpg" },
+            { palabra: "bike", imagen: "./img/bike.jpg" },
+            { palabra: "grass", imagen: "./img/grass.jpg" },
+            { palabra: "game", imagen: "./img/game.jpg" },
+            { palabra: "tree", imagen: "./img/tree.jpg" },
+            { palabra: "kite", imagen: "./img/kite.jpg" },
+            { palabra: "alien", imagen: "./img/alien.jpg" },
+            { palabra: "monster", imagen: "./img/monster.jpg" },
+            { palabra: "doll", imagen: "./img/doll.jpg" },
+            { palabra: "robot", imagen: "./img/robot.jpg" },
+            { palabra: "balloon", imagen: "./img/balloon.jpg" },
+            { palabra: "toy", imagen: "./img/toy.jpg" },
+            { palabra: "teddy", imagen: "./img/teddy.jpg" }
         ]
     },
     "3rd Grade": {
-        "Test 3": [
+        "Test 2": [
             { palabra: "bookcase", imagen: "./img/bookcase.jpg" },
             { palabra: "cupboard", imagen: "./img/cupboard.jpg" },
             { palabra: "dining room", imagen: "./img/dining_room.jpg" },
@@ -182,7 +198,9 @@ const bibliotecaPalabras = {
             { palabra: "flat", imagen: "./img/flat.jpg" },
             { palabra: "arm", imagen: "./img/arm.jpg" },
             { palabra: "chair", imagen: "./img/chair.jpg" },
-            { palabra: "bathroom", imagen: "./img/bathroom.jpg" },
+            { palabra: "bathroom", imagen: "./img/bathroom.jpg" }
+        ],
+        "Test 3": [
             { palabra: "letter", imagen: "./img/letter.jpg" },
             { palabra: "line", imagen: "./img/line.jpg" },
             { palabra: "badminton", imagen: "./img/badminton.jpg" },
@@ -223,6 +241,28 @@ const bibliotecaPalabras = {
             { palabra: "about", imagen: "./img/about.jpg" },
             { palabra: "of", imagen: "./img/of.jpg" },
             { palabra: "but", imagen: "./img/but.jpg" }
+            { palabra: "Monday", imagen: "./img/calendar.jpg" },
+            { palabra: "Tuesday", imagen: "./img/calendar.jpg" },
+            { palabra: "Wednesday", imagen: "./img/calendar.jpg" },
+            { palabra: "Thursday", imagen: "./img/calendar.jpg" },
+            { palabra: "Friday", imagen: "./img/calendar.jpg" },
+            { palabra: "Saturday", imagen: "./img/calendar.jpg" },
+            { palabra: "Sunday", imagen: "./img/calendar.jpg" },
+            { palabra: "lion", imagen: "./img/lion.jpg" },
+            { palabra: "shark", imagen: "./img/shark.jpg" },
+            { palabra: "penguin", imagen: "./img/penguin.jpg" },
+            { palabra: "Charlie", imagen: "./img/Charlie.jpg" },
+            { palabra: "back", imagen: "./img/back.jpg" },
+            { palabra: "neck", imagen: "./img/neck.jpg" },
+            { palabra: "beard", imagen: "./img/beard.jpg" },
+            { palabra: "fat", imagen: "./img/fat.jpg" },
+            { palabra: "tooth", imagen: "./img/tooth.jpg" },
+            { palabra: "teeth", imagen: "./img/teeth.jpg" },
+            { palabra: "Fred", imagen: "./img/Fred.jpg" },
+            { palabra: "thin", imagen: "./img/thin.jpg" },
+            { palabra: "hair", imagen: "./img/hair.jpg" },
+            { palabra: "Peter", imagen: "./img/Peter.jpg" },
+            { palabra: "Zoe", imagen: "./img/Zoe.jpg" }
         ]
     }
 };
