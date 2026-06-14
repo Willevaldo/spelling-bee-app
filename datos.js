@@ -240,7 +240,7 @@ const bibliotecaPalabras = {
             { palabra: "really", imagen: "./img/really.jpg" },
             { palabra: "about", imagen: "./img/about.jpg" },
             { palabra: "of", imagen: "./img/of.jpg" },
-            { palabra: "but", imagen: "./img/but.jpg" }
+            { palabra: "but", imagen: "./img/but.jpg" },
             { palabra: "Monday", imagen: "./img/calendar.jpg" },
             { palabra: "Tuesday", imagen: "./img/calendar.jpg" },
             { palabra: "Wednesday", imagen: "./img/calendar.jpg" },
